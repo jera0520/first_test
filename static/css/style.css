@@ -1,0 +1,551 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+}
+
+/* static/css/style.css */
+
+/* 전체 페이지 기본 스타일 */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f8f9fa;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    position: relative; /* flash 메시지 위치 기준 */
+}
+
+.flash-messages {
+    position: fixed;
+    top: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #ff4d4d;
+    color: white;
+    padding: 15px 30px;
+    border-radius: 8px;
+    z-index: 1000;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.flash-messages ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* 헤더 (로고와 메뉴) */
+header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* 로고, 메인메뉴, 유저메뉴를 양쪽으로 분산 */
+    padding: 15px 40px;
+    background-color: #ffffff;
+    border-bottom: 1px solid #e7e7e7;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.logo img {
+    height: 40px; /* 로고 크기 재조정 */
+}
+
+/* 메인 메뉴를 중앙으로 보내기 위한 설정 */
+.main-menu {
+    flex-grow: 1; /* 남는 공간을 모두 차지하게 함 */
+    display: flex;
+    justify-content: center; /* 메뉴 아이템들을 중앙으로 정렬 */
+}
+
+nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+}
+
+nav li {
+    margin-left: 30px;
+}
+
+nav.user-menu img {
+    height: 24px; /* 아이콘 크기 조절 */
+    vertical-align: middle; /* 텍스트와 이미지 정렬 */
+}
+
+nav a {
+    text-decoration: none;
+    color: #555;
+    font-weight: 600;
+    font-size: 16px;
+    transition: color 0.3s ease;
+}
+
+nav a:hover {
+    color: #007bff;
+}
+
+/* 메인 컨텐츠 영역 */
+main {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column; /* Added to stack children vertically */
+    /* height: 100%; */ /* Removed to allow content to dictate height */
+    text-align: center;
+    padding: 20px;
+    justify-content: center;
+}
+
+/* --- index.html 전용 스타일 (2단 레이아웃) --- */
+.hero-section-split {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 100%; /* Add this */
+    /* padding: 20px; */
+    text-align: left;
+}
+
+.hero-text {
+    flex: 1;
+    padding-right: 100px;
+    text-align: right;
+}
+
+.hero-text h1 {
+    font-size: 48px;
+    font-weight: bold;
+    line-height: 1.3;
+    margin-bottom: 20px;
+    color: #D8AAAA;
+}
+
+.hero-text p {
+    font-size: 18px;
+    color: #d8bbbb;
+    line-height: 1.6;
+    margin-bottom: 30px;
+}
+
+.hero-image {
+    display: block;
+    flex: 1.2; /* 텍스트보다 이미지 영역에 조금 더 넓은 비율을 할당 */
+    align-self: stretch; /* 컨테이너 높이에 맞게 늘어남 */
+    margin-top: 40px;
+}
+
+.hero-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* 컨테이너를 가득 채우면서 이미지 비율 유지 */
+    border-radius: 15px;
+}
+
+.cta-button {
+    background-color: transparent;
+    color: #D8AAAA;
+    border: 1px solid #D8AAAA;
+    padding: 15px 35px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 0px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    box-shadow: 0 4px 10px rgba(0,123,255,0.2);
+}
+
+.cta-button:hover {
+    background-color: #D8AAAA;
+    color: #ffffff;
+    transform: translateY(-2px);
+}
+
+
+/* --- analysis.html 전용 스타일 --- */
+.analysis-container {
+    display: flex;
+    width: 100%;
+    max-width: 1200px;
+    border-radius: 10px;
+    /* box-shadow: 0 5px 15px rgba(0,0,0,0.08); */
+    overflow: hidden;
+    margin: 20px auto;
+}
+
+.left-panel, .right-panel {
+    padding: 40px;
+    margin-top: 30px;
+}
+
+/* .left-panel {
+    text-align: center;
+} */
+
+.left-panel {
+    width: calc(50% - 60px);
+    margin-right: 30px;
+}
+
+.right-panel {
+    width: calc(50% + 80px);
+    height: 460px;
+    background-color: #ffffff;
+    padding: 40px;
+    margin-left: 30px;
+    border-radius: 100px;
+    box-shadow: 0 5px 10px rgba(0,0,0,0.08);
+}
+
+.all-right-panel {
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* 그림자 효과 */
+}
+
+.right-panel h2 {
+    margin-top: 0px;
+    color: #D8AAAA; /* 제목 색상 변경 */
+    font-size: 28px; /* 제목 크기 키우기 */
+}
+
+.right-panel h2 .subtitle {
+    font-size: 18px; /* 부제목 글자 크기 */
+    font-weight: normal; /* 부제목 폰트 굵기 */
+}
+
+.pink-text {
+    color: #D6B0B0;
+}
+
+.red-text {
+    color: #F18A8A;
+}
+
+.right-panel ul {
+    list-style: none; /* 기본 리스트 스타일 제거 */
+    padding: 0;
+    margin: 0;
+}
+
+.sub-li {
+    margin-bottom: 0px;
+}
+
+.right-panel ul li {
+    padding: 15px 20px; /* 패딩 */
+    margin-bottom: 10px; /* 아이템 간 간격 */
+    border-radius: 8px; /* 모서리 둥글게 */
+    font-size: 16px;
+    line-height: 1;
+    color: #7D6B6B;
+   /* position: relative;  아이콘 위치 지정을 위해 */
+   /* padding-left: 40px;  아이콘 공간 확보 */
+}
+
+
+
+.image-preview-container {
+    margin: auto;
+    margin-top: 50px;
+    width: 270px;
+    height: 320px;
+    border: 2px dashed #ced4da;
+    border-radius: 12px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    margin-bottom: 30px;
+    background-image: url('../images/man2.jpg');
+    background-size: cover;
+    background-position: center;
+    overflow: hidden;
+}
+
+.image-preview-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* 컨테이너를 가득 채우도록 수정 */
+}
+
+.image-preview-container.solid-border {
+    border-style: solid;
+}
+
+.hidden {
+    display: none;
+}
+
+.placeholder-text {
+    color: #727272;
+    text-align: center;
+    padding-bottom: 10px;
+}
+
+.button-group {
+    display: flex;
+    justify-content: center;
+    gap: 20px; /* 버튼 사이 간격 */
+}
+
+.file-input-label, .analyze-button {
+    padding: 12px 25px;
+    margin-top: 10px;
+    border-radius: 0; /* 각진 모양 */
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid #D8AAAA; /* 테두리 스타일 */
+    background-color: transparent; /* 투명 배경 */
+    color: #D8AAAA; /* 텍스트 색상 */
+}
+
+.file-input-label:hover, .analyze-button:hover {
+    background-color: #D8AAAA;
+    color: white;
+}
+
+#file-upload {
+    display: none; /* 실제 파일 입력은 숨김 */
+}
+
+/* --- result.html 전용 스타일 --- */
+.centered-content {
+    padding: 40px;
+}
+
+.all-result-container {
+    background-color: #ffffff;
+    width: 100%;
+    max-width: 1200px;
+    border-radius: 100px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    text-align: center;
+    margin: 40px auto;
+}
+
+.all-result-container h2{
+    margin: 40px 0 0 0;
+    color: #a36f6f;
+    font-size: 30px;
+}
+
+.result-container {
+    display: flex;
+    overflow: hidden;
+    margin: 20px;
+}
+
+.result-details {
+    padding: 40px;
+    flex: 1;
+}
+
+.result-details h2 {
+    margin-top: 0;
+}
+
+.score-display {
+    background-color: #FFF6F6;
+    border-left: 5px solid #D8AAAA;
+    padding: 20px;
+    margin: 30px 0;
+    text-align: center;
+}
+
+.score-display p {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.score-value {
+    font-size: 60px;
+    font-weight: bold;
+    color: #D8AAAA;
+    line-height: 1.2;
+}
+
+.score-max {
+    font-size: 20px;
+    color: #666;
+    margin-left: 5px;
+}
+
+.result-description {
+    font-size: 16px;
+    line-height: 1.7;
+    margin: 40px 40px 40px 60px;
+    padding: 0px 50px 0px 100px;
+    text-align: left;
+}
+
+.button-group-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.result-button-retry, .result-button-recommend {
+    padding: 12px 25px;
+    border-radius: 0; /* 각진 모양 */
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid #D8AAAA; /* 테두리 스타일 */
+    background-color: transparent; /* 투명 배경 */
+    color: #D8AAAA; /* 텍스트 색상 */
+    text-align: center; /* Keep text-align center */
+    text-decoration: none; /* Keep text-decoration none */
+}
+
+.result-button-retry:hover, .result-button-recommend:hover {
+    background-color: #D8AAAA;
+    color: white;
+}
+
+/* --- result.html Chart Styles --- */
+.result-grid-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 40px;
+}
+
+.chart-item {
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 280px; /* 최소 높이 지정 */
+}
+
+.result-details-box {
+    padding: 0px 40px 40px 40px; /* 상단 패딩 줄임 */
+    text-align: center;
+}
+
+
+
+
+
+/* 푸터 */
+footer {
+    text-align: center;
+    padding: 20px;
+    background-color: #343a40;
+    color: #f8f9fa;
+    width: 100%;
+}
+
+/* --- login.html 전용 스타일 --- */
+.login-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 40px 20px;
+}
+
+.login-box {
+    background-color: #ffffff;
+    padding: 40px 50px;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 450px;
+    text-align: center;
+}
+
+.login-box h2 {
+    margin-bottom: 30px;
+    font-size: 28px;
+    color: #333;
+}
+
+.input-group {
+    margin-bottom: 20px;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+    box-sizing: border-box; /* padding이 너비에 포함되도록 설정 */
+}
+
+.login-button {
+    width: 100%;
+    padding: 15px;
+    background-color: #D8AAAA;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.login-button:hover {
+    background-color: #C79999;
+}
+
+.login-links {
+    margin-top: 25px;
+    font-size: 14px;
+    color: #777;
+}
+
+.login-links a {
+    color: #555;
+    text-decoration: none;
+    margin: 0 10px;
+    transition: color 0.3s ease;
+}
+
+.login-links a:hover {
+    color: #000;
+    text-decoration: underline;
+}
+
+.login-links span {
+    color: #ddd;
+}
+
+/* result.html의 차트 박스 제거용 */
+#gauge-chart.chart-item,
+#bar-chart.chart-item {
+    background: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+#gauge-chart.chart-item {
+    padding-left: 150px; /* 차트를 오른쪽으로 밀어냅니다 */
+}
+
+
+/* --- reconmmendeations.html 전용 스타일 --- */
+.mytype-container h2 {
+    font-size: 30px;
+    letter-spacing: 3px;
+    padding: 50px 50px 0 50px;
+    text-align: center;
+}
+
+.my-type-icon {
+    margin: 0 150px 80px 150px;
+}

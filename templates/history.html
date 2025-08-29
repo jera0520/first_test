@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}분석 기록 - SKINMATE{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/history.css') }}">
+    <style>
+        body {
+            background-color: #e9ecef;
+        }
+        .title-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .edit-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 10px;
+        }
+        .edit-controls .left {
+            display: flex;
+            align-items: center;
+        }
+        .edit-controls .right {
+            display: flex;
+            align-items: center;
+        }
+        .edit-mode-item {
+            visibility: hidden;
+        }
+        .edit-mode-active .edit-mode-item {
+            visibility: visible;
+        }
+        .edit-mode-active .history-item .analysis-checkbox {
+            display: inline-block;
+        }
+        .history-item .analysis-checkbox {
+            display: none;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="history-container">
+    <!-- Detailed Analyses Card -->
+    <div id="detailed-analyses-list" class="card">
+        <div class="title-container">
+            <h2>Analysis History</h2>
+        </div>
+        <div class="edit-controls">
+            <div class="left">
+                <div class="edit-mode-item">
+                    <button type="button" id="select-all-button" class="select-all-button">전체 선택</button>
+                </div>
+                <form action="{{ url_for('history.delete_selected_analyses') }}" method="post" id="delete-selected-form" onsubmit="return confirm('정말로 선택한 기록을 삭제하시겠습니까?');" class="edit-mode-item" style="margin-left: 10px;">
+                    <button type="submit" class="delete-button">삭제</button>
+                </form>
+            </div>
+            <div class="right">
+                <button type="button" id="edit-button" class="edit-button">편집</button>
+            </div>
+        </div>
+        
+        {% if analyses %}
+            <form id="analysis-list-form" style="max-height: 500px; overflow-y: auto;">
+                {% for analysis in analyses %}
+                <div class="history-item">
+                    <input type="checkbox" name="analysis_ids" value="{{ analysis.id }}" class="analysis-checkbox">
+                    {% if analysis.image_filename %}
+                    <img src="{{ url_for('static', filename='uploads_temp/' + analysis.image_filename) }}" alt="분석 이미지">
+                    {% endif %}
+                    <div class="history-details">
+                        <p class="timestamp">{{ analysis.analysis_timestamp.strftime('%Y년 %m월 %d일 %H:%M') }}</p>
+                        <h3>피부 타입: <span style="color: #F66F6F;">{{ analysis.skin_type }}</span></h3>
+                        <p><b>주요 고민:</b> 
+                            {% set concerns = analysis.concerns_json | fromjson %}
+                            {{ concerns | map(attribute='name') | join(', ') }}
+                        </p>
+                    </div>
+                </div>
+                {% endfor %}
+            </form>
+        {% else %}
+            <p>아직 분석 기록이 없습니다. 지금 바로 피부 분석을 시작해보세요!</p>
+            <a href="{{ url_for('analysis.analysis') }}" class="result-button-recommend" style="margin-top:20px; text-decoration: none;">분석하러 가기</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const editButton = document.getElementById('edit-button');
+        const detailedAnalysesList = document.getElementById('detailed-analyses-list');
+        const deleteButtonForm = document.getElementById('delete-selected-form');
+        const analysisCheckboxes = document.querySelectorAll('.analysis-checkbox');
+        const selectAllButton = document.getElementById('select-all-button');
+        let allSelected = false;
+
+        function updateSelectAllButton() {
+            const allChecked = Array.from(analysisCheckboxes).every(checkbox => checkbox.checked);
+            if (allChecked && analysisCheckboxes.length > 0) {
+                selectAllButton.textContent = '선택 해제';
+                allSelected = true;
+            } else {
+                selectAllButton.textContent = '전체 선택';
+                allSelected = false;
+            }
+        }
+
+        editButton.addEventListener('click', function () {
+            detailedAnalysesList.classList.toggle('edit-mode-active');
+            if (detailedAnalysesList.classList.contains('edit-mode-active')) {
+                this.textContent = '완료';
+            } else {
+                this.textContent = '편집';
+                // Uncheck all checkboxes and reset button text when exiting edit mode
+                analysisCheckboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                updateSelectAllButton();
+            }
+        });
+
+        selectAllButton.addEventListener('click', function () {
+            allSelected = !allSelected;
+            analysisCheckboxes.forEach(checkbox => {
+                checkbox.checked = allSelected;
+            });
+            updateSelectAllButton();
+        });
+
+        analysisCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateSelectAllButton);
+        });
+
+        // The form for deletion is now separate from the list of analyses
+        // We need to move the checked analysis_ids to the delete form before submission
+        deleteButtonForm.addEventListener('submit', function(event) {
+            const analysisListForm = document.getElementById('analysis-list-form');
+            const checkedCheckboxes = analysisListForm.querySelectorAll('input[name="analysis_ids"]:checked');
+            
+            // Clear previous hidden inputs
+            const oldInputs = deleteButtonForm.querySelectorAll('input[name="analysis_ids"]');
+            oldInputs.forEach(input => input.remove());
+
+            if (checkedCheckboxes.length === 0) {
+                alert('삭제할 항목을 선택해주세요.');
+                event.preventDefault(); // Stop form submission
+                return;
+            }
+
+            checkedCheckboxes.forEach(checkbox => {
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'analysis_ids';
+                hiddenInput.value = checkbox.value;
+                deleteButtonForm.appendChild(hiddenInput);
+            });
+        });
+    });
+</script>
+{% endblock %}

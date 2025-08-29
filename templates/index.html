@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}SKINMATE - AI 피부 분석 및 추천{% endblock %}
+
+{% block content %}
+<div class="hero-section-split">
+    <div class="hero-text">
+        <h1>AI가 찾아주는<br>나만의 피부 솔루션</h1>
+        <p>사진 한 장으로 간편하게 피부 상태를 분석하고,&nbsp&nbsp&nbsp<br>개인별 맞춤 관리법과 화장품을 추천받으세요.&nbsp&nbsp</p>
+        <a href="{{ url_for('analysis.analysis') }}" class="cta-button">지금 바로 분석하기</a>
+    </div>
+    <div class="hero-image">
+                <img src="{{ url_for('static', filename='images/main_image.jpg') }}" alt="메인 이미지">
+    </div>
+</div>
+{% endblock %}

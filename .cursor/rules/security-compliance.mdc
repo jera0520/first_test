@@ -1,0 +1,500 @@
+---
+alwaysApply: true
+description: "Critical security compliance and vulnerability prevention rules"
+---
+
+# 🔒 Security Compliance & Vulnerability Prevention
+
+## 🚨 IMMEDIATE SECURITY FIXES REQUIRED
+
+### ❌ CRITICAL VULNERABILITY: Hardcoded Secret Key
+**LOCATION:** [app.py](mdc:app.py) line 38
+```python
+# ❌ CRITICAL SECURITY BREACH - MUST FIX IMMEDIATELY
+app.config['SECRET_KEY'] = 'supersecretkey'  # EXPOSED SECRET!
+```
+
+**IMMEDIATE ACTION REQUIRED:**
+```python
+# ✅ SECURE IMPLEMENTATION
+import secrets
+import os
+
+class Config:
+    SECRET_KEY = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
+    
+    @staticmethod
+    def validate_production_config():
+        """Validate that production config is secure."""
+        if os.environ.get('FLASK_ENV') == 'production':
+            if not os.environ.get('SECRET_KEY'):
+                raise SecurityError("SECRET_KEY must be set in production")
+            if Config.SECRET_KEY == 'supersecretkey':
+                raise SecurityError("Default secret key detected in production")
+```
+
+### ❌ FILE UPLOAD VULNERABILITIES
+**CURRENT ISSUES in [app.py](mdc:app.py):**
+```python
+# ❌ SECURITY ISSUES:
+filename = secure_filename(file.filename)  # Not enough validation
+filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+file.save(filepath)  # No size limits, no content validation
+```
+
+## ✅ MANDATORY SECURITY IMPLEMENTATIONS
+
+### 1. SECURE FILE UPLOAD HANDLING
+```python
+# utils/secure_upload.py
+import magic
+import hashlib
+from pathlib import Path
+
+class SecureFileUploader:
+    """Secure file upload handler with comprehensive validation."""
+    
+    ALLOWED_MIME_TYPES = {
+        'image/jpeg': ['.jpg', '.jpeg'],
+        'image/png': ['.png'],
+        'image/gif': ['.gif']
+    }
+    
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    MAX_FILENAME_LENGTH = 255
+    
+    def __init__(self, upload_directory: Path):
+        self.upload_directory = Path(upload_directory)
+        self.upload_directory.mkdir(parents=True, exist_ok=True)
+    
+    def validate_and_save(self, file, user_id: int) -> dict:
+        """
+        Securely validate and save uploaded file.
+        
+        Args:
+            file: Flask file object
+            user_id: ID of uploading user
+            
+        Returns:
+            Dictionary with file info
+            
+        Raises:
+            SecurityError: If file fails security validation
+        """
+        # 1. Basic validation
+        if not file or not file.filename:
+            raise SecurityError("No file provided")
+        
+        # 2. File size validation
+        file.seek(0, 2)  # Seek to end
+        file_size = file.tell()
+        file.seek(0)     # Reset position
+        
+        if file_size > self.MAX_FILE_SIZE:
+            raise SecurityError(f"File too large: {file_size} bytes")
+        
+        if file_size == 0:
+            raise SecurityError("Empty file not allowed")
+        
+        # 3. Filename validation
+        if len(file.filename) > self.MAX_FILENAME_LENGTH:
+            raise SecurityError("Filename too long")
+        
+        # 4. MIME type validation using python-magic
+        file_content = file.read()
+        file.seek(0)  # Reset for later use
+        
+        mime_type = magic.from_buffer(file_content, mime=True)
+        if mime_type not in self.ALLOWED_MIME_TYPES:
+            raise SecurityError(f"Invalid file type: {mime_type}")
+        
+        # 5. File extension validation
+        file_ext = Path(file.filename).suffix.lower()
+        if file_ext not in self.ALLOWED_MIME_TYPES[mime_type]:
+            raise SecurityError(f"Mismatched file extension: {file_ext}")
+        
+        # 6. Generate secure filename
+        file_hash = hashlib.sha256(file_content).hexdigest()[:16]
+        secure_filename = f"{user_id}_{int(time.time())}_{file_hash}{file_ext}"
+        
+        # 7. Save file securely
+        file_path = self.upload_directory / secure_filename
+        
+        try:
+            with open(file_path, 'wb') as f:
+                f.write(file_content)
+            
+            # 8. Set restrictive permissions
+            file_path.chmod(0o644)
+            
+            return {
+                'original_filename': file.filename,
+                'secure_filename': secure_filename,
+                'file_path': str(file_path),
+                'file_size': file_size,
+                'mime_type': mime_type,
+                'upload_time': datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            # Clean up partial file
+            if file_path.exists():
+                file_path.unlink()
+            raise SecurityError(f"File save failed: {str(e)}")
+```
+
+### 2. INPUT VALIDATION & SANITIZATION
+```python
+# utils/validators.py
+from marshmallow import Schema, fields, validate, ValidationError
+import bleach
+import re
+
+class StrictStringField(fields.String):
+    """String field with strict validation and sanitization."""
+    
+    def _deserialize(self, value, attr, obj, **kwargs):
+        """Deserialize with sanitization."""
+        if value is None:
+            return None
+        
+        # Convert to string and strip
+        value = str(value).strip()
+        
+        # Check for malicious patterns
+        dangerous_patterns = [
+            r'<script.*?>.*?</script>',  # Script tags
+            r'javascript:',              # JavaScript URLs
+            r'on\w+\s*=',               # Event handlers
+            r'<iframe.*?>',             # Iframes
+            r'eval\s*\(',               # eval() calls
+            r'exec\s*\(',               # exec() calls
+        ]
+        
+        for pattern in dangerous_patterns:
+            if re.search(pattern, value, re.IGNORECASE):
+                raise ValidationError(f"Potentially malicious content detected")
+        
+        # Sanitize HTML if present
+        if '<' in value or '>' in value:
+            value = bleach.clean(value, tags=[], attributes={}, strip=True)
+        
+        return super()._deserialize(value, attr, obj, **kwargs)
+
+class UserRegistrationSchema(Schema):
+    """Schema for user registration with strict validation."""
+    
+    username = StrictStringField(
+        required=True,
+        validate=[
+            validate.Length(min=2, max=50),
+            validate.Regexp(r'^[a-zA-Z0-9_]+$', 
+                          error='Username can only contain letters, numbers, and underscores')
+        ]
+    )
+    
+    email = fields.Email(
+        required=True,
+        validate=validate.Length(max=120)
+    )
+    
+    password = fields.String(
+        required=True,
+        validate=[
+            validate.Length(min=8, max=128),
+            validate.Regexp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)', 
+                          error='Password must contain uppercase, lowercase, and digit')
+        ]
+    )
+
+class ImageAnalysisSchema(Schema):
+    """Schema for image analysis requests."""
+    
+    image = fields.Raw(
+        required=True,
+        validate=validate.Length(max=10*1024*1024)  # 10MB limit
+    )
+    
+    analysis_type = StrictStringField(
+        missing='skin_analysis',
+        validate=validate.OneOf(['skin_analysis', 'moisture_detection'])
+    )
+```
+
+### 3. AUTHENTICATION & AUTHORIZATION
+```python
+# utils/auth.py
+from functools import wraps
+from flask import session, request, jsonify, current_app
+import time
+import hashlib
+
+class AuthenticationManager:
+    """Secure authentication management."""
+    
+    MAX_LOGIN_ATTEMPTS = 5
+    LOCKOUT_DURATION = 900  # 15 minutes
+    SESSION_TIMEOUT = 3600  # 1 hour
+    
+    def __init__(self):
+        self.failed_attempts = {}  # In production, use Redis
+    
+    def login_required(self, f):
+        """Decorator for routes requiring authentication."""
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # Check if user is logged in
+            if 'user_id' not in session:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            # Check session timeout
+            if self._is_session_expired():
+                session.clear()
+                return jsonify({'error': 'Session expired'}), 401
+            
+            # Update session activity
+            session['last_activity'] = time.time()
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    
+    def rate_limit(self, max_requests: int = 60, window_seconds: int = 60):
+        """Rate limiting decorator."""
+        def decorator(f):
+            @wraps(f)
+            def decorated_function(*args, **kwargs):
+                client_ip = self._get_client_ip()
+                
+                if self._is_rate_limited(client_ip, max_requests, window_seconds):
+                    return jsonify({'error': 'Rate limit exceeded'}), 429
+                
+                return f(*args, **kwargs)
+            return decorated_function
+        return decorator
+    
+    def authenticate_user(self, email: str, password: str) -> dict:
+        """
+        Authenticate user with brute force protection.
+        
+        Args:
+            email: User email
+            password: Plain text password
+            
+        Returns:
+            Authentication result dictionary
+        """
+        client_ip = self._get_client_ip()
+        
+        # Check for account lockout
+        if self._is_account_locked(email):
+            return {
+                'success': False,
+                'error': 'Account temporarily locked due to failed attempts',
+                'retry_after': self.LOCKOUT_DURATION
+            }
+        
+        # Attempt authentication
+        user = UserRepository.authenticate(email, password)
+        
+        if user:
+            # Success - clear failed attempts
+            self._clear_failed_attempts(email)
+            
+            # Create secure session
+            session.clear()
+            session['user_id'] = user.id
+            session['username'] = user.username
+            session['login_time'] = time.time()
+            session['last_activity'] = time.time()
+            session['csrf_token'] = self._generate_csrf_token()
+            
+            # Log successful login
+            current_app.logger.info(f"User {user.id} logged in from {client_ip}")
+            
+            return {'success': True, 'user': user.to_dict()}
+        
+        else:
+            # Failed authentication
+            self._record_failed_attempt(email)
+            
+            # Log failed attempt
+            current_app.logger.warning(f"Failed login attempt for {email} from {client_ip}")
+            
+            return {
+                'success': False,
+                'error': 'Invalid email or password'
+            }
+    
+    def _is_session_expired(self) -> bool:
+        """Check if current session has expired."""
+        last_activity = session.get('last_activity', 0)
+        return (time.time() - last_activity) > self.SESSION_TIMEOUT
+    
+    def _generate_csrf_token(self) -> str:
+        """Generate CSRF token for session."""
+        token_data = f"{session['user_id']}{time.time()}{current_app.secret_key}"
+        return hashlib.sha256(token_data.encode()).hexdigest()
+```
+
+### 4. SECURE LOGGING & MONITORING
+```python
+# utils/security_monitor.py
+import logging
+from datetime import datetime, timedelta
+from typing import Dict, List
+
+class SecurityMonitor:
+    """Monitor and log security events."""
+    
+    def __init__(self):
+        self.security_logger = logging.getLogger('security')
+        self.security_logger.setLevel(logging.INFO)
+        
+        # Create secure log handler
+        handler = logging.FileHandler('logs/security.log')
+        formatter = logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(message)s'
+        )
+        handler.setFormatter(formatter)
+        self.security_logger.addHandler(handler)
+    
+    def log_security_event(self, event_type: str, details: Dict, 
+                          severity: str = 'INFO'):
+        """
+        Log security-related events.
+        
+        Args:
+            event_type: Type of security event
+            details: Event details dictionary
+            severity: Event severity (INFO, WARNING, ERROR, CRITICAL)
+        """
+        log_entry = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'event_type': event_type,
+            'severity': severity,
+            'ip_address': details.get('ip_address'),
+            'user_id': details.get('user_id'),
+            'user_agent': details.get('user_agent'),
+            'details': details
+        }
+        
+        log_method = getattr(self.security_logger, severity.lower())
+        log_method(f"SECURITY_EVENT: {log_entry}")
+        
+        # Alert on critical events
+        if severity == 'CRITICAL':
+            self._send_security_alert(log_entry)
+    
+    def detect_suspicious_activity(self, user_id: int) -> List[str]:
+        """
+        Detect patterns indicating suspicious activity.
+        
+        Returns:
+            List of detected suspicious activities
+        """
+        suspicious_activities = []
+        
+        # Check for rapid consecutive requests
+        # Check for unusual access patterns
+        # Check for failed authentication attempts
+        # Implement based on specific threat model
+        
+        return suspicious_activities
+    
+    def _send_security_alert(self, event: Dict):
+        """Send alert for critical security events."""
+        # Implement alerting mechanism (email, Slack, etc.)
+        pass
+```
+
+## 🔐 PRODUCTION SECURITY CHECKLIST
+
+### ✅ MANDATORY SECURITY MEASURES
+1. **Environment Configuration**
+   ```bash
+   # .env (NEVER commit this file)
+   SECRET_KEY=your-super-secret-key-here
+   DATABASE_URL=your-database-url
+   FLASK_ENV=production
+   SSL_DISABLE=False
+   ```
+
+2. **HTTPS Configuration**
+   ```python
+   # config.py
+   class ProductionConfig:
+       FORCE_HTTPS = True
+       SESSION_COOKIE_SECURE = True
+       SESSION_COOKIE_HTTPONLY = True
+       SESSION_COOKIE_SAMESITE = 'Lax'
+       PERMANENT_SESSION_LIFETIME = timedelta(hours=1)
+   ```
+
+3. **Content Security Policy**
+   ```python
+   # utils/security_headers.py
+   @app.after_request
+   def set_security_headers(response):
+       """Set security headers on all responses."""
+       response.headers['Content-Security-Policy'] = (
+           "default-src 'self'; "
+           "script-src 'self' 'unsafe-inline'; "
+           "style-src 'self' 'unsafe-inline'; "
+           "img-src 'self' data:; "
+           "frame-ancestors 'none';"
+       )
+       response.headers['X-Content-Type-Options'] = 'nosniff'
+       response.headers['X-Frame-Options'] = 'DENY'
+       response.headers['X-XSS-Protection'] = '1; mode=block'
+       response.headers['Strict-Transport-Security'] = (
+           'max-age=31536000; includeSubDomains'
+       )
+       return response
+   ```
+
+### ❌ SECURITY ANTI-PATTERNS TO AVOID
+- **Never** log sensitive information (passwords, tokens)
+- **Never** use `eval()` or `exec()` with user input
+- **Never** trust client-side validation alone
+- **Never** expose internal error details to users
+- **Never** store sensitive data in browser localStorage
+- **Never** use default or weak encryption keys
+
+## 🧪 SECURITY TESTING
+
+### ✅ REQUIRED SECURITY TESTS
+```python
+# tests/test_security.py
+class TestSecurityMeasures:
+    """Test security implementations."""
+    
+    def test_hardcoded_secrets_detection(self):
+        """Test that no hardcoded secrets exist in code."""
+        # Scan codebase for potential secrets
+        dangerous_patterns = [
+            r'SECRET_KEY\s*=\s*["\'][^"\']{10,}["\']',
+            r'password\s*=\s*["\'][^"\']+["\']',
+            r'api_key\s*=\s*["\'][^"\']+["\']'
+        ]
+        # Implementation to scan files
+    
+    def test_file_upload_security(self):
+        """Test file upload security measures."""
+        # Test malicious file upload attempts
+        # Test file size limits
+        # Test MIME type validation
+    
+    def test_sql_injection_prevention(self):
+        """Test SQL injection prevention."""
+        # Test parameterized queries
+        # Test input sanitization
+    
+    def test_xss_prevention(self):
+        """Test XSS prevention measures."""
+        # Test input sanitization
+        # Test output encoding
+```
+
+---
+
+**CRITICAL ACTION REQUIRED**: The security vulnerabilities identified in this analysis, particularly the hardcoded secret key in [app.py](mdc:app.py), must be addressed immediately before any production deployment.

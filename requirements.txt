@@ -1,0 +1,11 @@
+flask
+opencv-python
+tensorflow
+numpy
+xgboost
+gunicorn
+click
+werkzeug
+python-magic-bin
+pillow
+marshmallow

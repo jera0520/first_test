@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}SKINMATE 소개{% endblock %}
+
+{% block head %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/introduction.css') }}">
+    <style>
+    .section{padding:72px 0}
+    .title{font-size:clamp(28px, 5vw, 40px);line-height:1.2;margin:0 0 10px}
+    .subtitle{color:var(--muted);margin:0 0 28px}
+    .btn{
+      display:inline-flex;align-items:center;gap:10px;
+      padding:14px 20px;border-radius:999px;font-weight:700;
+      background:var(--brand);color:var(--brand-ink);
+      box-shadow:var(--shadow);border:0;cursor:pointer
+    }
+    .btn.secondary{background:#e8f3f0;color:#175f51}
+    .pill{display:inline-block;padding:6px 12px;border-radius:999px;background:#eef2f7;color:#4b5563;font-size:12px}
+    .features{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+    .feature{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow)}
+    .feature .icon{width:42px;height:42px;border-radius:12px;background:#eef7f4;display:grid;place-items:center;margin-bottom:12px}
+    .feature h3{margin:0 0 6px;font-size:18px}
+    .feature p{margin:0;color:var(--muted)}
+</style>
+{% endblock %}
+
+{% block body_class %}introduction-page{% endblock %}
+
+{% block content %}
+    <div class="hero-section">
+        <div class="hero-text-container">
+            <h1>건강한 피부를 위한<br>첫번째 걸음,</h1>
+            <p>오직 당신을 위한<br>AI 피부 관리사 <strong class="brand-name">SKINMATE</strong></p>
+        </div>
+    </div>
+    <div>
+        <section id="why" class="section">
+            <div class="container">
+                <h2 class="title">Why SKINMATE?</h2>
+                <p class="subtitle">브랜드의 핵심 가치를 세 가지로 압축했습니다.</p>
+                <div class="features">
+                <article class="feature">
+                    <div class="icon" aria-hidden="true">💡</div>
+                    <h3>AI 분석</h3>
+                    <p>내 피부 데이터 기반으로 개인별 관리 전략을 제안합니다.</p>
+                </article>
+                <article class="feature">
+                    <div class="icon" aria-hidden="true">📈</div>
+                    <h3>실시간 변화 감지</h3>
+                    <p>매일 달라지는 컨디션을 기록하고 루틴을 조정합니다.</p>
+                </article>
+                <article class="feature">
+                    <div class="icon" aria-hidden="true">🧴</div>
+                    <h3>개인화 솔루션</h3>
+                    <p>나에게 맞는 루틴과 제품 조합을 스마트하게 추천합니다.</p>
+                </article>
+                </div>
+            </div>
+        </section>
+    </div>
+    <div class="content-section">
+        <img src="{{ url_for('static', filename='images/intro_img2.png') }}" alt="Introduction Image 2" class="content-image-single">
+        <p>간단히 피부 사진만 업로드하면,<br>AI가 피부 상태를 분석해 점수를 매기고<br>맞춤형 화장품을 추천해 드립니다.</p>
+        <p>분석 결과는 시각적으로 제공되어<br>피부 변화 추이를 한눈에 확인할 수 있습니다.<br>원하는 기간을 설정해 피부 변화를 그래프로 확인하고,<br>꾸준한 케어에 도움을 받으세요.</p>
+        <p>SkinMate는 피부 건강을 위한 생활 습관을 관리하고,<br>자신에게 맞는 화장품을 찾는 데 도움을 주는 서비스입니다.<br>전문적인 의료 상담이 필요한 경우, 반드시 의사나 전문가와 상의하세요.</p>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const contentSection = document.querySelector('.content-section');
+
+        const observerOptions = {
+            root: null, // Use the viewport as the root
+            rootMargin: '0px',
+            threshold: 0.5 // Trigger when 50% of the element is visible
+        };
+
+        const observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                                if (entry.isIntersecting) {
+                    const contentImage = contentSection.querySelector('.content-image-single');
+                    if (contentImage) {
+                        setTimeout(() => {
+                            contentImage.classList.add('animate');
+                        }, 50); // Animate image slightly before paragraphs
+                    }
+
+                    const paragraphs = contentSection.querySelectorAll('p');
+                    paragraphs.forEach((p, index) => {
+                        setTimeout(() => {
+                            p.classList.add('animate');
+                        }, (index * 150) + 100); // Stagger by 150ms, start after image
+                    });
+                    observer.unobserve(contentSection); // Stop observing once visible
+                }
+            });
+        }, observerOptions);
+
+        if (contentSection) {
+            observer.observe(contentSection);
+        }
+    });
+</script>
+{% endblock %}

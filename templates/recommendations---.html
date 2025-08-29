@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}추천 상품 - SKINMATE{% endblock %}
+
+{% block head %}
+<style>
+    main.centered-content {
+        flex-direction: column;
+        align-items: center; /* To center the items horizontally */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mytype-container">
+    <h2>나의 피부 타입은?&nbsp;&nbsp;&nbsp;<span style="color: #F66F6F; font-weight: bold;">{{ skin_type }}</span></h2>
+    <div class="my-type-icon" style="display: flex; align-items: center;">
+    {% if scores %}
+        <span style="margin-right: 20px;">수분 :
+            {% if scores.moisture is not none %}
+                <img src="{{ url_for('static', filename='images/' + get_face_icon(scores.moisture)) }}" alt="수분 점수 아이콘" style="width:30px; vertical-align:middle; margin-left: 5px;">
+            {% endif %}
+        </span>
+        <span style="margin-right: 20px;">탄력 :
+            {% if scores.elasticity is not none %}
+                <img src="{{ url_for('static', filename='images/' + get_face_icon(scores.elasticity)) }}" alt="탄력 점수 아이콘" style="width:30px; vertical-align:middle; margin-left: 5px;">
+            {% endif %}
+        </span>
+        <span>주름 :
+            {% if scores.wrinkle is not none %}
+                <img src="{{ url_for('static', filename='images/' + get_face_icon(scores.wrinkle)) }}" alt="주름 점수 아이콘" style="width:30px; vertical-align:middle; margin-left: 5px;">
+            {% endif %}
+        </span>
+    {% else %}
+        <!-- Fallback if scores are not available -->
+        <span>분석 점수를 불러올 수 없습니다.</span>
+    {% endif %}
+</div>
+</div>
+
+<div class="recommendations-container">
+    <p>{{ recommendation_text | safe }}</p>
+</div>
+{% endblock %}

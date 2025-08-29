@@ -1,0 +1,756 @@
+@import url('https://fonts.googleapis.com/css2?family=Gaegu&display=swap');
+
+main.centered-content {
+    flex-direction: column;
+    align-items: center;
+}
+
+.prescription-container {
+    max-width: 580px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.user-info-card {
+    color: #D8AAAA;
+    background: #ffffff;
+    padding: 30px;
+    border-radius: 0;
+    margin-bottom: 30px;
+    text-align: center;
+    border: 3px solid #D8AAAA;
+}
+
+/* 사용 전 안내사항을 꼭 읽어주세요 */
+.info-toggle-button {
+    display: inline-block;
+    text-decoration: none;
+    width: 100%;
+    padding: 15px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #d47575;
+    cursor: pointer;
+    margin-bottom: 20px;
+    border: none;
+    background: none;
+}
+
+.info-toggle-button:hover {
+    background-color: none;
+    color: rgb(226, 77, 77);
+}
+
+/* 로고 이미지 */
+.prescription-logo {
+    display: block;
+    margin: 20px auto 6px auto;
+    width: 60px;
+    height: auto;
+}
+
+/* 제목 부분 : AI 피부 분석 결과 */
+.user-info-card h2 {
+    margin: 0 auto 40px auto;
+    color: #BE6A6A;
+    font-size: 32px;
+    font-weight: bold;
+    padding-bottom: 10px;
+    border-bottom: 8px double #D8AAAA;
+    display: block;
+    width: -moz-fit-content;
+    width: fit-content;
+}
+
+/* 사용자 이름 전체 부분, 밑줄 */
+.user-info-card p.username {
+    margin: 0 auto 15px auto;
+    font-weight: 500;
+    padding-bottom: 1px;
+    border-bottom: 3px solid #e2bcbc;
+    display: block;
+    width: -moz-fit-content;
+    width: fit-content;
+}
+
+/* 사용자 이름 */
+.rt_user_name {
+    /* font-family: 'Stylish'; */
+    font-family: 'Gaegu', cursive;
+    color: #1d1c1c;
+    font-size: 28px;
+    font-weight: 600;
+}
+
+/* 사용자 이름에서 '님' */
+.rt_user_name_nim {
+    color: #D8AAAA;
+    font-size: 18px;
+    font-weight: 500;
+}
+
+/* 피부 타입 */
+.skin-type-highlight {
+    color: #1d1c1c;
+    font-weight: 600;
+    font-size: 24px;
+    font-family: 'Gaegu', cursive;
+}
+
+/* 나의 피부 타입은? */
+.user-info-card p.skin-type-label {
+    font-size: 18px;
+    font-weight: 500;
+    margin: 20px auto;
+    color: #D8AAAA;
+    border-bottom: 3px solid #e2bcbc;
+    display: block;
+    width: -moz-fit-content;
+    width: fit-content;
+}
+
+/* 아이콘 부분 */
+.my-type-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 40px auto;
+}
+
+.score-item {
+    margin: 0 15px;
+    color: #000000;
+}
+
+.score-face-icon {
+    width: 30px;
+    vertical-align: middle;
+    margin-left: 5px;
+}
+
+/* 자세히 보기 */
+.result-button-recommend {
+    display: inline-block;
+    background: none;
+    color: #5a5a5a;
+    text-decoration: none;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+}
+
+.result-button-recommend:hover {
+    background: none;
+    color: rgb(235, 136, 136);
+}
+
+/* 날짜 전체 부분 */
+.prescription-date {
+    margin-bottom: 0;
+}
+
+/* 날짜 숫자 부분 */
+.date-num {
+    font-weight: bold;
+    font-size: 24px;
+    font-family: 'Gaegu', cursive;
+    color: #1d1c1c;
+}
+
+/* 년, 월, 일 */
+.date-unit {
+    color: #D8AAAA;
+    margin: 0 2px;
+    font-size: 20px;
+    font-weight: 500;
+}
+
+/* 스킨메이트약국 */
+.drugstore-name {
+    font-size: 48px;
+    font-weight: 800;
+    margin: 30px auto 0 auto;
+    padding-bottom: 3px;
+    border-bottom: 3px solid #e2bcbc;
+    display: block;
+    width: -moz-fit-content;
+    width: fit-content;
+}
+
+/* 약사 김피부 */
+.all-dirtk {
+    margin: 0 auto 0 auto;
+}
+
+/* 약사 */
+.dirtk {
+    font-size: 14px;
+    letter-spacing: 15px;
+    font-weight: 500;
+    margin-left: 10px;
+
+}
+
+/* 약사 이름 */
+.dirtkdlfma {
+    font-size: 18px;
+    letter-spacing: 30px;
+    font-weight: 600;
+}
+
+.info-section {
+    /* padding: 25px; */
+    background-color: none;
+    /* border-radius: 15px; */
+    margin: 20px 0;
+}
+
+.info-section.hidden {
+    display: none;
+}
+
+/* 구분선 */
+.info-section .qa-section,
+.info-section .tip-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.info-section h4 {
+    margin-top: 0;
+    font-weight: bold;
+    font-size: 24px;
+}
+
+.info-section p {
+    margin-bottom: 0;
+    font-size: 18px;
+    color: #3d3d3d;
+}
+
+/* .info-section .disclaimer-section h4 {
+    color: #e75b5b;
+} */
+
+.info-section .disclaimer-section p {
+    color: #eb3434;
+}
+
+
+/* routines.html 페이지 관련 내용 */
+
+.routine-tab-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 20px; /* Add some space between the buttons */
+    margin: 20px 0 20px 0;
+}
+
+.tab-button img {
+    width: 70px;
+    height: 70px;
+}
+
+/* Morning theme styles for tab buttons */
+.tab-button {
+    background: none;
+    border: none;
+    padding:70px 80px 10px 80px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    color: #1cff2800;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.2;
+}
+
+.tab-button.active {
+    color: #e6121200;
+    font-weight: 500;
+    font-size: 16px;
+    opacity: 1;
+}
+
+.tab-button.active:hover {
+    color: #f7c72a;
+    opacity: 1;
+}
+
+.tab-button:hover {
+    color: #d3c9ee;
+    opacity: 1;
+}
+
+/* Night theme styles for tab buttons */
+main.night-theme .tab-button {
+    color: #cccccc00; 
+}
+
+main.night-theme .tab-button.active {
+    color: #ffffff00; 
+
+}
+
+main.night-theme .tab-button:hover {
+    color: #b3932d; 
+    font-weight: 500;
+
+}
+
+main.night-theme .tab-button.active:hover {
+    color: #d3c9ee; 
+    font-weight: 500;
+
+}
+
+.morning-routine-section {
+    background: none;
+    margin-bottom: 40px;
+    overflow: hidden;
+}
+
+.night-routine-section {
+    background: none;
+    margin-bottom: 40px;
+    overflow: hidden;
+}
+
+.routine-header {
+    background: none;
+    color: black;
+    padding: 10px 30px 10px 30px;
+    text-align: center;
+}
+
+.routine-header.night {
+    background: none;
+    color: #ffffff;
+    padding: 10px 30px 10px 30px;
+    text-align: center;
+}
+
+.routine-header h2 {
+    margin: 60px 0 12px 0;
+    font-size: 38px;
+    font-weight: 700;
+    color: #f7c72a;
+    font-family: 'Gaegu', cursive;
+}
+
+.routine-header.night h2 {
+    margin: 60px 0 12px 0;
+    font-size: 38px;
+    font-weight: 700;
+    color: white;
+    font-family: 'Gaegu', cursive;
+}
+
+.routine-header p {
+    margin: 0;
+    font-size: 16px;
+    color: #504b4b;
+}
+
+.routine-header.night p {
+    margin: 0;
+    font-size: 16px;
+    color: #dad4d4;
+}
+
+.morning_line_img {
+    width: 600px;
+    height: 12px;
+}
+
+.steps-container {
+    padding: 30px;
+}
+
+.step-card {
+    /* background: #f8f9fa; */
+    border-radius: 15px;
+    margin: 25px;
+    margin-bottom: 25px;
+    /* border-left: 5px solid #667eea;  */
+    background-color: #ffffff;
+    border: 1px solid #FFE3C9;
+    width: 500px;
+}
+
+.step-card.night {
+    /* background: #f8f9fa; */
+    border-radius: 18px;
+    margin: 25px;
+    margin-bottom: 25px;
+    /* border-left: 5px solid #667eea;  */
+    background-color: #ffffff;
+    border: 1px solid #000000;
+    width: 500px;
+}
+
+.step-card:last-child {
+    margin-bottom: 0;
+}
+
+.step-td {
+    background: #FFF8C9;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 20px;
+}
+
+.step-td.night {
+    background: #565B9C;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 20px;
+}
+
+.step-title {
+    font-size: 22px;
+    font-weight: 450;
+    color: #000000;
+    margin-bottom: 6px;
+}
+
+.step-title.night {
+    font-size: 22px;
+    font-weight: 450;
+    color: #ffffff;
+    margin-bottom: 6px;
+}
+
+.step-description {
+    color: #666;
+    font-size: 16px;
+}
+
+.step-description.night {
+    color: #d6d6d6;
+    font-size: 16px;
+}
+
+.primary-product-card {
+    padding: 25px;
+    margin: 20px 20px 0 20px;
+    position: relative;
+}
+
+.primary-badge {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: #667eea;
+    color: white;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.product-content {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding-left: 40px;
+}
+
+.product-image-container {
+    position: relative;
+}
+
+.product-image, .product-image-placeholder {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 10px;
+    background: #f8f9fa;
+}
+
+.product-image-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-size: 12px;
+}
+
+.product-info {
+    flex: 1;
+    text-align: left;
+    padding-left: 12px;
+}
+
+.product-reason {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 15px;
+    line-height: 1.4;
+}
+
+.product-brand {
+    color: #8a8a8a;
+    font-size: 14px;
+    margin-left: 3px;
+    margin-bottom: 5px;
+}
+
+.product-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10px;
+    line-height: 1.3;
+    text-align: left;
+}
+
+.product-rank {
+    position: absolute;
+    top: -20px;
+    left: -10px;
+    background: white;
+    color: #FFA2C7;
+    padding: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    z-index: 1;
+    border: 1px solid #FFA2C7;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    align-items: center;      /* 세로 중앙 정렬 */
+    justify-content: center;  /* 가로 중앙 정렬 */
+    display: flex; /* 중앙 정렬 */
+}
+
+.product-link {
+    display: inline-block;
+    background: transparent;
+    color: rgb(48, 48, 48);
+    text-decoration: none;
+    padding: 2 0;
+    border: none;
+    border-radius: 0;
+    font-size: 18px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    opacity: 50%;
+}
+
+.product-link:hover {
+    background: transparent;
+    color: black;
+    /* text-decoration: underline; */
+    opacity: 100%
+}
+
+.product-link.small {
+    padding: 0;
+    font-size: 16px;
+    opacity: 50%;
+}
+
+.product-link.small:hover {
+    background: transparent;
+    opacity: 100%;
+}
+
+
+/* .alternatives-accordion {
+    margin-top: 20px;
+} */
+
+.alternatives-accordion summary {
+    background: none;
+    padding: 15px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    color: #D8AAAA;
+    font-size: 14px;
+}
+
+.alternatives-accordion summary:hover {
+    color: #e98888;
+}
+
+.alternatives-list {
+    background: white;
+    border-radius: 20px;
+    margin-top: 10px;
+    overflow: hidden;
+}
+
+.alternative-item {
+    padding: 15px 20px;
+    border-bottom: 1px solid #f1f3f4;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.alternative-item:last-child {
+    border-bottom: none;
+}
+
+.alternative-image, .alternative-image-placeholder {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.alternative-image-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-size: 10px;
+}
+
+.alternative-info {
+    flex: 1;
+}
+
+.alternative-brand {
+    color: #3b3b3b;
+    font-weight: bold;
+    font-size: 12px;
+    margin-bottom: 3px;
+}
+
+.alternative-name {
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.alternative-rank {
+    background: #e9ecef;
+    color: #495057;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: bold;
+    display: inline-block;
+}
+
+
+
+.no-products {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    margin: 40px 0;
+    padding: 40px;
+}
+
+/* Chart Styles */
+.chart-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.chart-item {
+    flex: 1;
+    padding: 10px;
+}
+
+.flex-spacer {
+    flex: 0.5;
+}
+
+#segmented-bars-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.bar-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.bar-label {
+    width: 50px;
+    font-weight: bold;
+    font-size: 16px;
+    word-break: keep-all;
+    white-space: nowrap;
+}
+
+.segment-bar {
+    display: flex;
+    width: 100%;
+    flex-grow: 1;
+    height: 25px;
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid #fff;
+}
+
+.segment {
+    flex: 1;
+    background-color: #f0f0f0;
+    border-left: 1px solid #fff;
+}
+
+.segment:first-child {
+    border-left: none;
+}
+
+.segment.filled {
+    background-color: #D8AAAA;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 40px;
+    border: 1px solid #888;
+    width: 60%;
+    max-width: 900px;
+    border-radius: 10px;
+    position: relative;
+}
+
+.close-button {
+    color: #aaa;
+    position: absolute;
+    top: 15px;
+    right: 25px;
+    font-size: 35px;
+    font-weight: bold;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+

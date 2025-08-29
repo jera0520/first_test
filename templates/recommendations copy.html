@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}AI 피부 분석 결과 - SKINMATE{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/recommendations.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="prescription-container">
+    <!-- 사용자 정보 카드 -->
+    {% if recommendations and recommendations.user_info %}
+    <div class="user-info-card">
+        <img src="{{ url_for('static', filename='images/logo_icon_img.jpg') }}" alt="SKINMATE Logo" class="prescription-logo">
+        <h2>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbspAI 피부 분석 결과&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp</h2>
+        <p class="username">&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp<span class="rt_user_name">{{ recommendations.user_info.username }}</span>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp<span class="rt_user_name_nim">님</span></p>
+        <p class="skin-type-label">피부 타입은&nbsp;&nbsp;&nbsp;<span class="skin-type-highlight">{{ skin_type }}</span>&nbsp;&nbsp;&nbsp;입니다</p>
+        <div class="my-type-icon">
+            {% if scores %}
+                <span class="score-item">수분 
+                    {% if scores.moisture is not none %}
+                        <img src="{{ url_for('static', filename='images/' + get_face_icon(scores.moisture)) }}" alt="수분 점수 아이콘" class="score-face-icon">
+                    {% endif %}
+                </span>
+                <span class="score-item">탄력 
+                    {% if scores.elasticity is not none %}
+                        <img src="{{ url_for('static', filename='images/' + get_face_icon(scores.elasticity)) }}" alt="탄력 점수 아이콘" class="score-face-icon">
+                    {% endif %}
+                </span>
+                <span class="score-item">주름 
+                    {% if scores.wrinkle is not none %}
+                        <img src="{{ url_for('static', filename='images/' + get_face_icon(scores.wrinkle)) }}" alt="주름 점수 아이콘" class="score-face-icon">
+                    {% endif %}
+                </span>
+        </div>
+            {% else %}
+                <span>분석 점수를 불러올 수 없습니다.</span>
+            {% endif %}
+            <p class="prescription-date">
+                <span class="date-num">{{ recommendations.user_info.date_info.year }}</span><span class="date-unit">년</span>
+                <span class="date-num">{{ recommendations.user_info.date_info.month }}</span><span class="date-unit">월</span>
+                <span class="date-num">{{ recommendations.user_info.date_info.day }}</span><span class="date-unit">일</span>
+            </p>
+            <p class="drugstore-name">&nbsp&nbsp&nbsp스킨메이트연구소&nbsp&nbsp&nbsp</p>
+            <p class="all-dirtk"><span class="dirtk">연구원</span>&nbsp&nbsp&nbsp&nbsp&nbsp<span class="dirtkdlfma">김피부</span></p>
+            <p>경상북도 안동시 경동로 1375</p>
+            <p>TEL. 054)123-4567</p>
+    </div>
+</div>
+    {% endif %}
+
+    <button id="toggleInfoBtn" class="info-toggle-button">⚠️ 사용 전 안내사항을 꼭 읽어주세요</button>
+    <div id="recommendationInfo" class="info-section hidden">
+        <div class="qa-section">
+            <h4>Only! 나만을 위한 추천이에요!</h4>
+            <p>SKINMATE는 그냥 인기순으로 제품을 추천하지 않아요.<br>우리 피부 고민, 피부 타입, 그리고 계절에 맞는 제형까지 꼼꼼하게 따져서 지금 당신에게 가장 잘 맞는 제품을 알려드려요.</p>
+        </div>
+        <div class="tip-section">
+            <h4>💡피부 관리 팁</h4>
+            <p>피부는 꾸준히 관리할 때 더 좋아져요.<br>30일 뒤에 다시 분석해서 어떻게 달라졌는지 꼭 확인해보세요!</p>
+        </div>
+        <div class="disclaimer-section">
+            <h4>사용 시 유의사항</h4>
+            <p>본 추천은 AI 기반 진단 결과로, 실제 효능은 개인의 피부 상태 및 반응에 따라 다를 수 있어요.<br>특정 성분에 알레르기가 있으신 경우 제품 전성분을 반드시 확인해주세요.</p>
+        </div>
+    </div>
+
+    <!-- 모닝 루틴 -->
+    {% if recommendations and recommendations.morning_routine %}
+    <div class="morning-routine-section">
+        <div class="routine-header">
+            <h2>{{ recommendations.morning_routine.title }}</h2>
+            <p>{{ recommendations.morning_routine.description }}</p>
+        </div>
+        
+        <div class="steps-container">
+            {% if recommendations.morning_routine.water_cleansing %}
+            <div class="water-cleansing-info {% if not recommendations.morning_routine.water_cleansing.suitable %}not-suitable{% endif %}">
+                <h4>{% if recommendations.morning_routine.water_cleansing.suitable %}물세안 적합{% else %}물세안 부적합{% endif %}</h4>
+                <p>{{ recommendations.morning_routine.water_cleansing.reason }}</p>
+            </div>
+            {% endif %}
+            
+            {% for step in recommendations.morning_routine.steps %}
+            <div class="step-card">
+                <div class="step-title">{{ step.step_title }}</div>
+                <div class="step-description">{{ step.step_description }}</div>
+                
+                {% if step.primary_recommendation %}
+                <div class="primary-product-card">
+                    <div class="primary-badge">맞춤 추천</div>
+                    <div class="product-content">
+                        {% if step.primary_recommendation.image_url %}
+                        <img src="{{ step.primary_recommendation.image_url }}" alt="{{ step.primary_recommendation.name }}" class="product-image" onerror="this.style.display='none'">
+                        {% else %}
+                        <div class="product-image-placeholder">
+                            <span>이미지 없음</span>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="product-info">
+                            <div class="product-brand">{{ step.primary_recommendation.brand }}</div>
+                            <div class="product-name">{{ step.primary_recommendation.name }}</div>
+                            <div class="product-rank">랭킹 {{ step.primary_recommendation.rank }}위</div>
+                            <div class="product-reason">✨ {{ step.primary_recommendation.reason }}</div>
+                            
+                            {% if step.primary_recommendation.product_url %}
+                            <a href="{{ step.primary_recommendation.product_url }}" target="_blank" class="product-link">제품 보기</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if step.alternatives %}
+                <details class="alternatives-accordion">
+                    <summary>다른 좋은 제품들도 있어요</summary>
+                    <div class="alternatives-list">
+                        {% for alt_product in step.alternatives %}
+                        <div class="alternative-item">
+                            {% if alt_product.image_url %}
+                            <img src="{{ alt_product.image_url }}" alt="{{ alt_product.name }}" class="alternative-image" onerror="this.style.display='none'">
+                            {% else %}
+                            <div class="alternative-image-placeholder">
+                                <span>이미지 없음</span>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="alternative-info">
+                                <div class="alternative-brand">{{ alt_product.brand }}</div>
+                                <div class="alternative-name">{{ alt_product.name }}</div>
+                                <div class="alternative-rank">랭킹 {{ alt_product.rank }}위</div>
+                            </div>
+                            
+                            {% if alt_product.product_url %}
+                            <a href="{{ alt_product.product_url }}" target="_blank" class="product-link small">보기</a>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </details>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 나이트 루틴 -->
+    {% if recommendations and recommendations.night_routine %}
+    <div class="night-routine-section">
+        <div class="routine-header night">
+            <h2>{{ recommendations.night_routine.title }}</h2>
+            <p>{{ recommendations.night_routine.description }}</p>
+        </div>
+        
+        <div class="steps-container">
+            {% for step in recommendations.night_routine.steps %}
+            <div class="step-card">
+                <div class="step-title">{{ step.step_title }}</div>
+                <div class="step-description">{{ step.step_description }}</div>
+                
+                {% if step.primary_recommendation %}
+                <div class="primary-product-card">
+                    <div class="primary-badge">맞춤 추천</div>
+                    <div class="product-content">
+                        {% if step.primary_recommendation.image_url %}
+                        <img src="{{ step.primary_recommendation.image_url }}" alt="{{ step.primary_recommendation.name }}" class="product-image" onerror="this.style.display='none'">
+                        {% else %}
+                        <div class="product-image-placeholder">
+                            <span>이미지 없음</span>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="product-info">
+                            <div class="product-brand">{{ step.primary_recommendation.brand }}</div>
+                            <div class="product-name">{{ step.primary_recommendation.name }}</div>
+                            <div class="product-rank">랭킹 {{ step.primary_recommendation.rank }}위</div>
+                            <div class="product-reason">✨ {{ step.primary_recommendation.reason }}</div>
+                            
+                            {% if step.primary_recommendation.product_url %}
+                            <a href="{{ step.primary_recommendation.product_url }}" target="_blank" class="product-link">제품 보기</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if step.alternatives %}
+                <details class="alternatives-accordion">
+                    <summary>다른 좋은 제품들도 있어요</summary>
+                    <div class="alternatives-list">
+                        {% for alt_product in step.alternatives %}
+                        <div class="alternative-item">
+                            {% if alt_product.image_url %}
+                            <img src="{{ alt_product.image_url }}" alt="{{ alt_product.name }}" class="alternative-image" onerror="this.style.display='none'">
+                            {% else %}
+                            <div class="alternative-image-placeholder">
+                                <span>이미지 없음</span>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="alternative-info">
+                                <div class="alternative-brand">{{ alt_product.brand }}</div>
+                                <div class="alternative-name">{{ alt_product.name }}</div>
+                                <div class="alternative-rank">랭킹 {{ alt_product.rank }}위</div>
+                            </div>
+                            
+                            {% if alt_product.product_url %}
+                            <a href="{{ alt_product.product_url }}" target="_blank" class="product-link small">보기</a>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </details>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 추천 데이터가 없는 경우 -->
+    {% if not recommendations %}
+    <div class="no-products">
+        <h3>아직 추천할 제품이 없습니다.</h3>
+        <p>피부 분석을 먼저 진행해주세요.</p>
+        <a href="/analysis" class="product-link">분석하기</a>
+    </div>
+    {% endif %}
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const infoSection = document.getElementById('recommendationInfo');
+        const toggleBtn = document.getElementById('toggleInfoBtn');
+
+        toggleBtn.addEventListener('click', function() {
+            infoSection.classList.toggle('hidden');
+            if (infoSection.classList.contains('hidden')) {
+                toggleBtn.textContent = '⚠️ 사용 전 안내사항을 꼭 읽어주세요';
+            } else {
+                toggleBtn.textContent = '안내사항 숨기기';
+            }
+        });
+    });
+</script>
+{% endblock %}

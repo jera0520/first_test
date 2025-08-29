@@ -1,0 +1,470 @@
+---
+globs: *.py,*.tflite,*.pkl
+description: "AI/ML model management, inference, and deployment best practices"
+---
+
+# 🤖 AI/ML Model Management Rules for SKINMATE
+
+## 🚨 CRITICAL ML ANTI-PATTERNS (MUST AVOID)
+
+### ❌ GLOBAL MODEL VARIABLES (CURRENT ISSUE)
+```python
+# ❌ BAD: Current implementation in app.py line 21-33
+_resnet_model = None  # Global variable - DANGEROUS!
+
+def get_resnet_model():
+    global _resnet_model  # Anti-pattern!
+    if _resnet_model is None:
+        # Model loading in global scope
+    return _resnet_model
+```
+
+**CRITICAL PROBLEMS:**
+- Memory leaks and resource management issues
+- Impossible to test with mock models
+- Thread safety concerns in production
+- No proper error handling or fallback strategies
+
+### ❌ HARDCODED MODEL PATHS
+```python
+# ❌ BAD: Hardcoded paths (current in app.py line 151)
+xgb_model_path = os.path.join(os.path.dirname(__file__), 'my_xgboost_model.pkl')
+
+# ❌ BAD: Direct file access without validation
+with open(xgb_model_path, 'rb') as f:
+    xgb_model = pickle.load(f)  # Security risk!
+```
+
+## ✅ MANDATORY ML ARCHITECTURE
+
+### 1. MODEL SERVICE PATTERN (REQUIRED)
+```python
+# services/model_service.py
+from abc import ABC, abstractmethod
+from typing import Optional, Dict, Any
+import logging
+
+class ModelInterface(ABC):
+    """Abstract interface for all ML models."""
+    
+    @abstractmethod
+    def predict(self, input_data: Any) -> Dict[str, float]:
+        """Make prediction on input data."""
+        pass
+    
+    @abstractmethod
+    def is_loaded(self) -> bool:
+        """Check if model is properly loaded."""
+        pass
+
+class SkinAnalysisModel(ModelInterface):
+    """ResNet50 + XGBoost model for skin analysis."""
+    
+    def __init__(self, config: ModelConfig):
+        self._config = config
+        self._resnet_model: Optional[Any] = None
+        self._xgboost_model: Optional[Any] = None
+        self._logger = logging.getLogger(__name__)
+        
+    def _load_resnet_model(self):
+        """Safely load ResNet50 model with proper error handling."""
+        try:
+            from tensorflow.keras.applications.resnet50 import ResNet50
+            self._resnet_model = ResNet50(
+                weights='imagenet', 
+                include_top=False, 
+                pooling='avg'
+            )
+            self._logger.info("ResNet50 model loaded successfully")
+        except Exception as e:
+            self._logger.error(f"Failed to load ResNet50: {e}")
+            raise ModelLoadError(f"ResNet50 loading failed: {str(e)}")
+    
+    def _load_xgboost_model(self):
+        """Safely load XGBoost model with validation."""
+        try:
+            model_path = self._config.xgboost_model_path
+            if not model_path.exists():
+                raise ModelLoadError(f"XGBoost model not found: {model_path}")
+            
+            with open(model_path, 'rb') as f:
+                self._xgboost_model = pickle.load(f)
+            
+            # Validate model
+            if not hasattr(self._xgboost_model, 'predict'):
+                raise ModelLoadError("Invalid XGBoost model format")
+                
+            self._logger.info("XGBoost model loaded successfully")
+        except Exception as e:
+            self._logger.error(f"Failed to load XGBoost: {e}")
+            raise ModelLoadError(f"XGBoost loading failed: {str(e)}")
+    
+    def predict(self, image_data: np.ndarray) -> Dict[str, float]:
+        """
+        Predict skin scores from image data.
+        
+        Args:
+            image_data: Preprocessed image array
+            
+        Returns:
+            Dictionary of skin analysis scores
+            
+        Raises:
+            ModelError: If prediction fails
+        """
+        if not self.is_loaded():
+            self._load_models()
+        
+        try:
+            # Extract features with ResNet50
+            features = self._resnet_model.predict(image_data, verbose=0)
+            
+            # Process features for XGBoost
+            processed_features = self._preprocess_features(features)
+            
+            # Get prediction
+            prediction = self._xgboost_model.predict(processed_features)
+            
+            # Convert to skin scores
+            return self._convert_to_skin_scores(prediction[0])
+            
+        except Exception as e:
+            self._logger.error(f"Prediction failed: {e}")
+            raise ModelError(f"Skin analysis failed: {str(e)}")
+    
+    def is_loaded(self) -> bool:
+        """Check if both models are loaded."""
+        return (self._resnet_model is not None and 
+                self._xgboost_model is not None)
+```
+
+### 2. MODEL CONFIGURATION MANAGEMENT
+```python
+# config/model_config.py
+from pathlib import Path
+from dataclasses import dataclass
+from typing import Optional
+
+@dataclass
+class ModelConfig:
+    """Configuration for ML models."""
+    
+    # Model paths
+    xgboost_model_path: Path
+    scaler_path: Path
+    selector_path: Path
+    
+    # Model parameters
+    image_size: tuple = (224, 224)
+    feature_dimensions: int = 1000
+    
+    # Performance settings
+    batch_size: int = 1
+    max_memory_mb: int = 1024
+    
+    # Fallback settings
+    use_fallback_scores: bool = True
+    fallback_scores: dict = None
+    
+    def __post_init__(self):
+        """Validate configuration after initialization."""
+        if self.fallback_scores is None:
+            self.fallback_scores = {
+                'moisture': 50.0,
+                'elasticity': 50.0, 
+                'wrinkle': 65.0,
+                'skin_type_score': 50.0
+            }
+        
+        # Validate paths exist
+        for path_attr in ['xgboost_model_path', 'scaler_path', 'selector_path']:
+            path = getattr(self, path_attr)
+            if not path.exists():
+                raise ConfigurationError(f"Model file not found: {path}")
+
+# config/settings.py
+def get_model_config() -> ModelConfig:
+    """Get model configuration from environment or defaults."""
+    base_path = Path(os.environ.get('MODEL_PATH', '.'))
+    
+    return ModelConfig(
+        xgboost_model_path=base_path / 'my_xgboost_model.pkl',
+        scaler_path=base_path / 'my_scaler.pkl',
+        selector_path=base_path / 'my_selector.pkl'
+    )
+```
+
+### 3. MODEL FACTORY PATTERN
+```python
+# services/model_factory.py
+class ModelFactory:
+    """Factory for creating and managing ML models."""
+    
+    _instances: Dict[str, ModelInterface] = {}
+    
+    @classmethod
+    def get_model(cls, model_name: str, config: ModelConfig) -> ModelInterface:
+        """
+        Get or create model instance (singleton pattern).
+        
+        Args:
+            model_name: Name of the model ('skin_analysis', 'moisture_detection')
+            config: Model configuration
+            
+        Returns:
+            Model instance
+        """
+        if model_name not in cls._instances:
+            cls._instances[model_name] = cls._create_model(model_name, config)
+        
+        return cls._instances[model_name]
+    
+    @classmethod
+    def _create_model(cls, model_name: str, config: ModelConfig) -> ModelInterface:
+        """Create new model instance."""
+        if model_name == 'skin_analysis':
+            return SkinAnalysisModel(config)
+        elif model_name == 'moisture_detection':
+            return MoistureDetectionModel(config)
+        else:
+            raise ValueError(f"Unknown model: {model_name}")
+    
+    @classmethod
+    def clear_cache(cls):
+        """Clear all cached models (useful for testing)."""
+        cls._instances.clear()
+```
+
+## 🔒 ML SECURITY BEST PRACTICES
+
+### ✅ SECURE MODEL LOADING
+```python
+# utils/model_security.py
+import hashlib
+import pickle
+from typing import Any
+
+class SecureModelLoader:
+    """Secure loader for ML models with validation."""
+    
+    ALLOWED_MODEL_TYPES = {
+        'xgboost.sklearn.XGBRegressor',
+        'sklearn.preprocessing.StandardScaler',
+        'sklearn.feature_selection.SelectKBest'
+    }
+    
+    @classmethod
+    def load_pickle_model(cls, file_path: Path, expected_hash: Optional[str] = None) -> Any:
+        """
+        Securely load pickle model with validation.
+        
+        Args:
+            file_path: Path to pickle file
+            expected_hash: Expected SHA256 hash of the file
+            
+        Returns:
+            Loaded model object
+            
+        Raises:
+            SecurityError: If model validation fails
+        """
+        # Validate file exists and is readable
+        if not file_path.exists():
+            raise SecurityError(f"Model file not found: {file_path}")
+        
+        # Check file hash if provided
+        if expected_hash:
+            actual_hash = cls._calculate_file_hash(file_path)
+            if actual_hash != expected_hash:
+                raise SecurityError("Model file hash mismatch - possible tampering")
+        
+        # Load with restricted unpickler
+        try:
+            with open(file_path, 'rb') as f:
+                model = pickle.load(f)
+            
+            # Validate model type
+            model_type = f"{model.__class__.__module__}.{model.__class__.__name__}"
+            if model_type not in cls.ALLOWED_MODEL_TYPES:
+                raise SecurityError(f"Disallowed model type: {model_type}")
+            
+            return model
+            
+        except Exception as e:
+            raise SecurityError(f"Failed to load model securely: {str(e)}")
+    
+    @staticmethod
+    def _calculate_file_hash(file_path: Path) -> str:
+        """Calculate SHA256 hash of file."""
+        sha256_hash = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(chunk)
+        return sha256_hash.hexdigest()
+```
+
+### ❌ SECURITY VULNERABILITIES TO AVOID
+```python
+# ❌ BAD: Unsafe pickle loading (current state)
+with open(model_path, 'rb') as f:
+    model = pickle.load(f)  # Can execute arbitrary code!
+
+# ❌ BAD: No model validation
+# ❌ BAD: No file integrity checks  
+# ❌ BAD: Loading models from user-controlled paths
+```
+
+## 🚀 PERFORMANCE & MEMORY MANAGEMENT
+
+### ✅ EFFICIENT MODEL INFERENCE
+```python
+# services/inference_service.py
+class InferenceService:
+    """Optimized inference service for skin analysis."""
+    
+    def __init__(self, model_service: ModelService):
+        self._model_service = model_service
+        self._preprocessing_cache = LRUCache(maxsize=100)
+        
+    async def analyze_skin_async(self, image_data: bytes) -> AnalysisResult:
+        """
+        Asynchronous skin analysis for better performance.
+        
+        Args:
+            image_data: Raw image bytes
+            
+        Returns:
+            Analysis results
+        """
+        # Preprocess image asynchronously
+        processed_image = await self._preprocess_image_async(image_data)
+        
+        # Run inference in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        scores = await loop.run_in_executor(
+            None, 
+            self._model_service.predict,
+            processed_image
+        )
+        
+        return AnalysisResult(scores)
+    
+    def batch_analyze(self, images: List[np.ndarray]) -> List[AnalysisResult]:
+        """Batch processing for multiple images."""
+        # Implement batch inference for efficiency
+        pass
+```
+
+### ✅ MEMORY MANAGEMENT
+```python
+# utils/memory_manager.py
+class ModelMemoryManager:
+    """Manages memory usage of ML models."""
+    
+    def __init__(self, max_memory_mb: int = 1024):
+        self._max_memory_mb = max_memory_mb
+        self._current_usage = 0
+    
+    def monitor_memory_usage(self):
+        """Monitor and log memory usage."""
+        import psutil
+        process = psutil.Process()
+        memory_mb = process.memory_info().rss / 1024 / 1024
+        
+        if memory_mb > self._max_memory_mb:
+            logger.warning(f"High memory usage: {memory_mb:.1f}MB")
+            self._suggest_cleanup()
+    
+    def _suggest_cleanup(self):
+        """Suggest memory cleanup strategies."""
+        logger.info("Consider clearing model caches or reducing batch sizes")
+```
+
+## 🧪 ML MODEL TESTING
+
+### ✅ COMPREHENSIVE MODEL TESTING
+```python
+# tests/test_model_service.py
+class TestSkinAnalysisModel:
+    """Test suite for skin analysis model."""
+    
+    @pytest.fixture
+    def mock_model_config(self):
+        """Create mock model configuration."""
+        return ModelConfig(
+            xgboost_model_path=Path('tests/fixtures/mock_model.pkl'),
+            scaler_path=Path('tests/fixtures/mock_scaler.pkl'),
+            selector_path=Path('tests/fixtures/mock_selector.pkl')
+        )
+    
+    def test_model_loads_successfully(self, mock_model_config):
+        """Test that model loads without errors."""
+        model = SkinAnalysisModel(mock_model_config)
+        assert model.is_loaded()
+    
+    def test_prediction_returns_valid_scores(self, mock_model_config):
+        """Test that predictions return valid score ranges."""
+        model = SkinAnalysisModel(mock_model_config)
+        dummy_image = np.random.rand(1, 224, 224, 3)
+        
+        scores = model.predict(dummy_image)
+        
+        # Validate score ranges
+        for score_name, score_value in scores.items():
+            assert 0 <= score_value <= 100, f"{score_name} out of range: {score_value}"
+    
+    def test_model_handles_invalid_input(self, mock_model_config):
+        """Test model error handling with invalid input."""
+        model = SkinAnalysisModel(mock_model_config)
+        
+        with pytest.raises(ModelError):
+            model.predict("invalid_input")
+    
+    def test_fallback_scores_on_model_failure(self, mock_model_config):
+        """Test fallback behavior when model fails."""
+        # Simulate model failure and verify fallback scores
+        pass
+```
+
+## 📊 MODEL MONITORING & LOGGING
+
+### ✅ PRODUCTION MONITORING
+```python
+# services/model_monitor.py
+class ModelMonitor:
+    """Monitor model performance and health in production."""
+    
+    def __init__(self, model_service: ModelService):
+        self._model_service = model_service
+        self._metrics_collector = MetricsCollector()
+    
+    def log_prediction(self, input_hash: str, prediction: Dict[str, float], 
+                      latency_ms: float):
+        """Log prediction for monitoring."""
+        self._metrics_collector.record_prediction(
+            timestamp=datetime.now(),
+            input_hash=input_hash,
+            prediction=prediction,
+            latency_ms=latency_ms
+        )
+        
+        # Alert on anomalies
+        if latency_ms > 5000:  # 5 seconds
+            logger.warning(f"Slow prediction: {latency_ms}ms")
+        
+        if any(score < 0 or score > 100 for score in prediction.values()):
+            logger.error(f"Invalid prediction scores: {prediction}")
+    
+    def health_check(self) -> Dict[str, Any]:
+        """Perform model health check."""
+        return {
+            'model_loaded': self._model_service.is_loaded(),
+            'last_prediction': self._metrics_collector.last_prediction_time,
+            'avg_latency': self._metrics_collector.average_latency(),
+            'memory_usage': self._get_memory_usage()
+        }
+```
+
+---
+
+**CRITICAL REFACTORING TASK**: The current global model management in [app.py](mdc:app.py) MUST be replaced with the service-based architecture described above. This is essential for security, testability, and maintainability of the ML pipeline.

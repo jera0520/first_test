@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <title>{% block title %}SKINMATE{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/logo_icon_img.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Flash messages styling */
+        .flash-messages {
+            width: 100%;
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            text-align: center;
+            width: 80%;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .alert-success { color: #155724; background-color: #d4edda; border-color: #c3e6cb; }
+        .alert-danger { color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }
+        .alert-info { color: #0c5460; background-color: #d1ecf1; border-color: #bee5eb; }
+    </style>
+    {% block head %}{% endblock %}
+    {% block page_specific_style %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+
+    <header>
+        <div class="logo">
+            <a href="/"><img src="{{ url_for('static', filename='images/skinmate_logo.png') }}" alt="SKINMATE 로고"></a>
+        </div>
+        <nav class="main-menu">
+            <ul>
+                <li><a href="{{ url_for('main.introduction') }}">소개</a></li>
+                <li><a href="{{ url_for('recommendations.recommendations') }}">1:1 추천</a></li>
+                <li><a href="#">AI 고민상담</a></li>
+                <li><a href="{{ url_for('history.history') }}">분석 기록</a></li>
+                <li><a href="{{ url_for('main.skin_diary') }}">피부 일지</a></li>
+            </ul>
+        </nav>
+        <nav class="user-menu">
+            <ul>
+                {% if session.user_id %}
+                    <li><a href="{{ url_for('auth.logout') }}"><img src="{{ url_for('static', filename='images/logout-img.png') }}" alt="로그아웃"></a></li>
+                {% else %}
+                    <li><a href="{{ url_for('auth.login') }}"><img src="{{ url_for('static', filename='images/user_icon.png') }}" alt="마이페이지"></a></li>
+                {% endif %}
+                <li><a href="#"><img src="{{ url_for('static', filename='images/heart_icon2.png') }}" alt="찜"></a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="centered-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <p>&copy; 2025 SKINMATE. All Rights Reserved.</p>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const flashMessages = document.querySelectorAll('.flash-messages .alert');
+            flashMessages.forEach(function(message) {
+                setTimeout(function() {
+                    message.style.display = 'none';
+                }, 2000); // 2 seconds
+            });
+        });
+    </script>
+</body>
+</html>

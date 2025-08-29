@@ -1,0 +1,420 @@
+---
+alwaysApply: true
+description: "Project structure and organization guidelines for SKINMATE"
+---
+
+# 🏗️ SKINMATE Project Structure & Organization Rules
+
+## 📁 MANDATORY PROJECT STRUCTURE
+
+The current flat structure with monolithic [app.py](mdc:app.py) (1061 lines) MUST be refactored into the following organized structure:
+
+```
+skinmate/
+├── 📁 app/                          # Main application package
+│   ├── __init__.py                  # Application factory
+│   ├── config.py                    # Configuration management
+│   ├── 📁 models/                   # Data models (SQLAlchemy)
+│   │   ├── __init__.py
+│   │   ├── user.py                  # User model
+│   │   ├── analysis.py              # Analysis model
+│   │   └── product.py               # Product model
+│   ├── 📁 routes/                   # Route blueprints
+│   │   ├── __init__.py
+│   │   ├── auth.py                  # Authentication routes
+│   │   ├── analysis.py              # Skin analysis routes
+│   │   ├── api.py                   # API endpoints
+│   │   └── main.py                  # Main page routes
+│   ├── 📁 services/                 # Business logic layer
+│   │   ├── __init__.py
+│   │   ├── analysis_service.py      # Skin analysis logic
+│   │   ├── model_service.py         # AI model management
+│   │   ├── recommendation_service.py # Product recommendations
+│   │   └── auth_service.py          # Authentication logic
+│   ├── 📁 repositories/             # Data access layer
+│   │   ├── __init__.py
+│   │   ├── base_repository.py       # Base repository pattern
+│   │   ├── user_repository.py       # User data access
+│   │   └── analysis_repository.py   # Analysis data access
+│   ├── 📁 utils/                    # Utility functions
+│   │   ├── __init__.py
+│   │   ├── validators.py            # Input validation
+│   │   ├── decorators.py            # Custom decorators
+│   │   ├── security.py              # Security utilities
+│   │   └── helpers.py               # General helpers
+│   └── 📁 static/                   # Static assets (unchanged)
+│       ├── css/
+│       ├── images/
+│       └── uploads_temp/
+├── 📁 ml_models/                    # AI/ML related files
+│   ├── __init__.py
+│   ├── 📁 models/                   # Model files (.pkl, .tflite)
+│   │   ├── my_xgboost_model.pkl
+│   │   ├── my_scaler.pkl
+│   │   ├── my_selector.pkl
+│   │   ├── filename.tflite
+│   │   └── moisture.tflite
+│   ├── 📁 services/                 # ML service layer
+│   │   ├── __init__.py
+│   │   ├── model_manager.py         # Model loading/management
+│   │   ├── skin_analyzer.py         # Skin analysis logic
+│   │   └── image_processor.py       # Image preprocessing
+│   └── 📁 config/                   # ML configuration
+│       ├── __init__.py
+│       └── model_config.py          # Model configurations
+├── 📁 database/                     # Database related files
+│   ├── __init__.py
+│   ├── 📁 migrations/               # Database migrations
+│   │   └── versions/
+│   ├── schema.sql                   # Base schema
+│   └── seed_data.py                 # Seed data for development
+├── 📁 tests/                        # Test suite
+│   ├── __init__.py
+│   ├── conftest.py                  # Test configuration
+│   ├── 📁 unit/                     # Unit tests
+│   │   ├── test_models.py
+│   │   ├── test_services.py
+│   │   └── test_repositories.py
+│   ├── 📁 integration/              # Integration tests
+│   │   ├── test_routes.py
+│   │   └── test_api.py
+│   └── 📁 fixtures/                 # Test fixtures
+│       ├── test_images/
+│       └── mock_models/
+├── 📁 config/                       # Environment configurations
+│   ├── __init__.py
+│   ├── development.py               # Development config
+│   ├── production.py                # Production config
+│   └── testing.py                   # Testing config
+├── 📁 logs/                         # Log files
+│   ├── app.log
+│   ├── security.log
+│   └── crawler.log
+├── 📁 scripts/                      # Utility scripts
+│   ├── __init__.py
+│   ├── deploy.py                    # Deployment script
+│   ├── backup_db.py                 # Database backup
+│   └── migrate_legacy.py            # Legacy code migration
+├── 📁 docs/                         # Documentation
+│   ├── api.md                       # API documentation
+│   ├── setup.md                     # Setup instructions
+│   └── security.md                  # Security guidelines
+├── .env.example                     # Environment variables template
+├── .gitignore                       # Git ignore rules
+├── requirements.txt                 # Python dependencies
+├── requirements-dev.txt             # Development dependencies
+├── Dockerfile                       # Docker configuration
+├── docker-compose.yml               # Docker compose for development
+├── pytest.ini                       # Pytest configuration
+├── .flake8                          # Linting configuration
+└── README.md                        # Project documentation
+```
+
+## 🎯 MODULE ORGANIZATION PRINCIPLES
+
+### ✅ SEPARATION OF CONCERNS
+```python
+# ❌ CURRENT STATE: Everything mixed in app.py
+@app.route('/analyze', methods=['POST'])
+def analyze_image():
+    # Authentication logic
+    # File validation
+    # Image processing
+    # AI inference
+    # Database operations
+    # Business logic
+    # Response generation
+    # 95+ lines of mixed responsibilities!
+
+# ✅ REFACTORED: Clear separation
+# routes/analysis.py
+@analysis_bp.route('/upload', methods=['POST'])
+@login_required
+@validate_input(ImageUploadSchema)
+def upload_image():
+    """Handle image upload - SINGLE RESPONSIBILITY"""
+    return analysis_service.process_upload(request.files['image'])
+
+# services/analysis_service.py
+class AnalysisService:
+    """Business logic for skin analysis - SINGLE RESPONSIBILITY"""
+    def process_upload(self, image_file):
+        # Coordinate the analysis workflow
+        pass
+
+# repositories/analysis_repository.py
+class AnalysisRepository:
+    """Data access for analyses - SINGLE RESPONSIBILITY"""
+    def save_analysis(self, analysis_data):
+        # Database operations only
+        pass
+```
+
+### ✅ DEPENDENCY DIRECTION
+```python
+# CORRECT DEPENDENCY FLOW:
+# Routes → Services → Repositories → Models
+# Higher level modules depend on lower level modules
+
+# routes/analysis.py (HIGH LEVEL)
+from app.services.analysis_service import AnalysisService
+
+# services/analysis_service.py (MIDDLE LEVEL)
+from app.repositories.analysis_repository import AnalysisRepository
+from ml_models.services.skin_analyzer import SkinAnalyzer
+
+# repositories/analysis_repository.py (LOW LEVEL)
+from app.models.analysis import Analysis
+
+# ❌ NEVER DO: Circular dependencies
+# services importing routes
+# models importing services
+```
+
+## 📋 FILE NAMING CONVENTIONS
+
+### ✅ NAMING STANDARDS
+```python
+# Class files: snake_case.py
+user_repository.py      # Contains UserRepository class
+skin_analyzer.py        # Contains SkinAnalyzer class
+model_service.py        # Contains ModelService class
+
+# Blueprint files: descriptive names
+auth.py                 # Authentication routes
+analysis.py             # Analysis routes
+api.py                  # API endpoints
+
+# Test files: test_ prefix
+test_user_repository.py
+test_analysis_service.py
+test_auth_routes.py
+
+# Configuration files: environment names
+development.py
+production.py
+testing.py
+```
+
+### ❌ AVOID THESE PATTERNS
+```python
+# ❌ BAD: Generic names
+utils.py               # Too generic - what kind of utils?
+helpers.py             # Too vague - helpers for what?
+main.py               # Unclear purpose in large project
+
+# ❌ BAD: Mixed naming conventions
+UserRepository.py      # Should be user_repository.py
+analysisService.py     # Should be analysis_service.py
+API_Routes.py          # Should be api_routes.py
+```
+
+## 🔧 CONFIGURATION MANAGEMENT
+
+### ✅ ENVIRONMENT-BASED CONFIG
+```python
+# config/__init__.py
+import os
+from .development import DevelopmentConfig
+from .production import ProductionConfig
+from .testing import TestingConfig
+
+config = {
+    'development': DevelopmentConfig,
+    'production': ProductionConfig,
+    'testing': TestingConfig
+}
+
+def get_config():
+    """Get configuration based on environment."""
+    return config[os.environ.get('FLASK_ENV', 'development')]
+
+# config/base.py
+class BaseConfig:
+    """Base configuration with common settings."""
+    
+    # Security
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    
+    # Database
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    
+    # File uploads
+    MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10MB
+    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'uploads')
+    
+    # ML Models
+    MODEL_PATH = os.environ.get('MODEL_PATH', 'ml_models/models')
+    
+    @staticmethod
+    def init_app(app):
+        """Initialize app with this configuration."""
+        pass
+
+# config/production.py
+class ProductionConfig(BaseConfig):
+    """Production configuration with security hardening."""
+    
+    DEBUG = False
+    TESTING = False
+    
+    # Security settings
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    
+    # Database
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    
+    @staticmethod
+    def init_app(app):
+        """Initialize production app."""
+        BaseConfig.init_app(app)
+        
+        # Production-specific initialization
+        if not app.config['SECRET_KEY']:
+            raise ValueError('SECRET_KEY must be set in production')
+```
+
+## 📦 PACKAGE INITIALIZATION
+
+### ✅ PROPER __init__.py FILES
+```python
+# app/__init__.py - Application Factory
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+
+db = SQLAlchemy()
+migrate = Migrate()
+
+def create_app(config_name='development'):
+    """Application factory pattern."""
+    app = Flask(__name__)
+    
+    # Load configuration
+    from config import get_config
+    app.config.from_object(get_config())
+    
+    # Initialize extensions
+    db.init_app(app)
+    migrate.init_app(app, db)
+    
+    # Register blueprints
+    from app.routes.auth import auth_bp
+    from app.routes.analysis import analysis_bp
+    from app.routes.api import api_bp
+    from app.routes.main import main_bp
+    
+    app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(analysis_bp, url_prefix='/analysis')
+    app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(main_bp)
+    
+    return app
+
+# app/models/__init__.py - Model Registration
+from .user import User
+from .analysis import Analysis
+from .product import Product
+
+__all__ = ['User', 'Analysis', 'Product']
+
+# app/services/__init__.py - Service Registration
+from .analysis_service import AnalysisService
+from .auth_service import AuthService
+from .model_service import ModelService
+
+__all__ = ['AnalysisService', 'AuthService', 'ModelService']
+```
+
+## 🧪 TESTING STRUCTURE
+
+### ✅ COMPREHENSIVE TEST ORGANIZATION
+```python
+# tests/conftest.py - Test Configuration
+import pytest
+from app import create_app, db
+
+@pytest.fixture
+def app():
+    """Create application for testing."""
+    app = create_app('testing')
+    with app.app_context():
+        db.create_all()
+        yield app
+        db.drop_all()
+
+@pytest.fixture
+def client(app):
+    """Create test client."""
+    return app.test_client()
+
+# tests/unit/test_services/test_analysis_service.py
+class TestAnalysisService:
+    """Unit tests for AnalysisService."""
+    
+    def test_analyze_valid_image(self, mock_dependencies):
+        """Test analysis with valid image."""
+        pass
+
+# tests/integration/test_routes/test_analysis_routes.py
+class TestAnalysisRoutes:
+    """Integration tests for analysis routes."""
+    
+    def test_upload_endpoint_with_auth(self, client, auth_headers):
+        """Test upload endpoint with authentication."""
+        pass
+```
+
+## 📋 MIGRATION CHECKLIST
+
+### 🎯 REFACTORING PRIORITIES
+
+1. **IMMEDIATE (Security Critical)**
+   - [ ] Move hardcoded SECRET_KEY to environment variables
+   - [ ] Implement secure file upload validation
+   - [ ] Add input sanitization and validation
+
+2. **HIGH PRIORITY (Architecture)**
+   - [ ] Extract route handlers from [app.py](mdc:app.py) into blueprints
+   - [ ] Create service layer for business logic
+   - [ ] Implement repository pattern for data access
+
+3. **MEDIUM PRIORITY (Organization)**
+   - [ ] Separate ML models into dedicated package
+   - [ ] Create proper configuration management
+   - [ ] Implement comprehensive error handling
+
+4. **LOW PRIORITY (Quality)**
+   - [ ] Add comprehensive test suite
+   - [ ] Implement logging and monitoring
+   - [ ] Create documentation
+
+### 🔄 MIGRATION STRATEGY
+```python
+# scripts/migrate_legacy.py
+"""Script to assist with legacy code migration."""
+
+class LegacyMigrator:
+    """Helper for migrating from monolithic structure."""
+    
+    def extract_routes(self, source_file: str, target_dir: str):
+        """Extract route handlers into blueprint files."""
+        # Implementation to parse app.py and extract routes
+        pass
+    
+    def create_service_layer(self, business_logic: dict):
+        """Create service classes from extracted business logic."""
+        # Implementation to create service files
+        pass
+    
+    def migrate_database_calls(self, source_dir: str):
+        """Convert direct DB calls to repository pattern."""
+        # Implementation to create repository classes
+        pass
+```
+
+---
+
+**CRITICAL TASK**: The current monolithic structure MUST be refactored according to this organization. Start with security fixes, then proceed with architectural separation. This is not optional for maintainable, scalable application development.

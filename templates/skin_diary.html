@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}피부 일지 - SKINMATE{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/history.css') }}">
+    <style>
+        body {
+            background-color: #e9ecef;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="history-container">
+    <h2>My Skin Report</h2>
+
+    <!-- Date Picker Card -->
+    <div class="card date-picker-card">
+        <label for="start-date-picker">시작 날짜:</label>
+        <input type="date" id="start-date-picker">
+        <label for="end-date-picker">종료 날짜:</label>
+        <input type="date" id="end-date-picker">
+        <button id="fetch-chart-data-btn">조회</button>
+    </div>
+
+    <!-- Chart Card -->
+    <div class="card">
+        <div id="weekly-skin-chart"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- The script block remains the same as the last version -->
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var options = {
+            series: [
+                { name: '수분', data: [] },
+                { name: '탄력', data: [] },
+                { name: '주름', data: [] }
+            ],
+            chart: {
+                height: 400,
+                type: 'line',
+                zoom: { enabled: false },
+                toolbar: { show: false }
+            },
+            dataLabels: { enabled: false },
+            stroke: { curve: 'smooth', width: 3 },
+            grid: {
+                borderColor: '#e7e7e7',
+                row: {
+                    colors: ['#f3f3f3', 'transparent'],
+                    opacity: 0.5
+                },
+            },
+            xaxis: {
+                categories: [],
+                title: { text: '날짜' }
+            },
+            yaxis: {
+                title: { text: '점수' },
+                min: 0,
+                max: 100,
+                labels: {
+                    formatter: function (val) {
+                        return val.toFixed(0);
+                    }
+                }
+            },
+            tooltip: {
+                y: {
+                    formatter: function (val) {
+                        return val.toFixed(0) + " 점"
+                    }
+                }
+            },
+            legend: {
+                position: 'top',
+                offsetY: 4
+            },
+            noData: {
+                text: '데이터를 불러오는 중입니다...'
+            }
+        };
+
+        var chart = new ApexCharts(document.querySelector("#weekly-skin-chart"), options);
+        chart.render();
+
+        var startDatePicker = document.getElementById('start-date-picker');
+        var endDatePicker = document.getElementById('end-date-picker');
+        var fetchBtn = document.getElementById('fetch-chart-data-btn');
+
+        function updateChart(startDate, endDate) {
+            if (!startDate || !endDate) {
+                alert('시작 날짜와 종료 날짜를 모두 선택해주세요.');
+                return;
+            }
+            if (new Date(startDate) > new Date(endDate)) {
+                alert('시작 날짜는 종료 날짜보다 이전이어야 합니다.');
+                return;
+            }
+
+            chart.updateOptions({ noData: { text: '데이터를 불러오는 중입니다...' } });
+
+            fetch(`/api/history?start_date=${startDate}&end_date=${endDate}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    
+                    if (data.graph_dates && data.graph_dates.length > 0) {
+                        const formattedDates = data.graph_dates.map(dateStr => {
+                            const date = new Date(dateStr);
+                            return `${date.getMonth() + 1}.${date.getDate()}`;
+                        });
+                        chart.updateOptions({
+                            xaxis: { categories: formattedDates },
+                            series: [
+                                { name: '수분', data: data.graph_moisture },
+                                { name: '탄력', data: data.graph_elasticity },
+                                { name: '주름', data: data.graph_wrinkle }
+                            ],
+                            noData: { text: '선택한 기간에 데이터가 없습니다.' }
+                        });
+                    } else {
+                         chart.updateOptions({
+                            xaxis: { categories: [] },
+                            series: [ { name: '수분', data: [] }, { name: '탄력', data: [] }, { name: '주름', data: [] } ],
+                            noData: { text: '선택한 기간에 데이터가 없습니다.' }
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching chart data:', error);
+                    chart.updateOptions({ noData: { text: '데이터를 불러오는데 실패했습니다.' } });
+                });
+        }
+
+        function formatDate(date) {
+            var yyyy = date.getFullYear();
+            var mm = String(date.getMonth() + 1).padStart(2, '0');
+            var dd = String(date.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        var today = new Date();
+        var sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(today.getDate() - 6);
+
+        var endDateString = formatDate(today);
+        var startDateString = formatDate(sevenDaysAgo);
+
+        startDatePicker.value = startDateString;
+        endDatePicker.value = endDateString;
+        
+        updateChart(startDateString, endDateString);
+
+        fetchBtn.addEventListener('click', function() {
+            updateChart(startDatePicker.value, endDatePicker.value);
+        });
+    });
+</script>
+{% endblock %}

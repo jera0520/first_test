@@ -1,0 +1,346 @@
+---
+globs: *.py
+description: "Flask application architecture and routing best practices for SKINMATE"
+---
+
+# 🏗️ Flask Architecture Guidelines for SKINMATE
+
+## 🚨 CRITICAL FLASK ANTI-PATTERNS (MUST AVOID)
+
+### ❌ MONOLITHIC ROUTE HANDLERS
+Current [app.py](mdc:app.py) has 1061 lines with everything mixed together - **THIS MUST BE REFACTORED**
+
+```python
+# ❌ BAD: Everything in one massive route (current state)
+@app.route('/analyze', methods=['POST'])
+def analyze_image():
+    # 95+ lines of mixed responsibilities:
+    # - Authentication logic
+    # - File validation  
+    # - Image processing
+    # - AI model inference
+    # - Database operations
+    # - Business logic
+    # - Template rendering
+    # THIS IS A MAINTAINABILITY NIGHTMARE!
+```
+
+### ❌ GLOBAL STATE MANAGEMENT
+```python
+# ❌ BAD: Global variables (current in app.py line 21)
+_resnet_model = None
+
+# ❌ BAD: Global app configuration scattered everywhere
+app.config['SECRET_KEY'] = 'supersecretkey'  # SECURITY RISK!
+```
+
+## ✅ MANDATORY FLASK ARCHITECTURE
+
+### 1. APPLICATION FACTORY PATTERN
+```python
+# app/__init__.py
+def create_app(config_name='development'):
+    """Application factory pattern for better testing and configuration."""
+    app = Flask(__name__)
+    app.config.from_object(config[config_name])
+    
+    # Initialize extensions
+    db.init_app(app)
+    migrate.init_app(app, db)
+    login_manager.init_app(app)
+    
+    # Register blueprints
+    from app.routes.auth import auth_bp
+    from app.routes.analysis import analysis_bp
+    from app.routes.api import api_bp
+    
+    app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(analysis_bp, url_prefix='/analysis')
+    app.register_blueprint(api_bp, url_prefix='/api')
+    
+    return app
+```
+
+### 2. BLUEPRINT ORGANIZATION (MANDATORY)
+```
+app/
+├── __init__.py              # Application factory
+├── models/                  # Data models
+│   ├── user.py             # User model
+│   ├── analysis.py         # Analysis model
+│   └── product.py          # Product model
+├── routes/                  # Route blueprints
+│   ├── auth.py             # Authentication routes
+│   ├── analysis.py         # Skin analysis routes
+│   ├── api.py              # API endpoints
+│   └── main.py             # Main application routes
+├── services/               # Business logic
+│   ├── analysis_service.py # Skin analysis service
+│   ├── model_service.py    # AI model management
+│   └── recommendation_service.py # Product recommendations
+└── utils/                  # Utility functions
+    ├── validators.py       # Input validation
+    ├── decorators.py       # Custom decorators
+    └── helpers.py          # Helper functions
+```
+
+### 3. ROUTE BLUEPRINT EXAMPLE
+```python
+# routes/analysis.py
+from flask import Blueprint, request, session, current_app
+from app.services.analysis_service import AnalysisService
+from app.utils.decorators import login_required, validate_input
+from app.utils.validators import ImageUploadSchema
+
+analysis_bp = Blueprint('analysis', __name__)
+
+@analysis_bp.route('/upload', methods=['POST'])
+@login_required
+@validate_input(ImageUploadSchema)
+def upload_and_analyze():
+    """
+    Handles skin image upload and analysis.
+    
+    Returns:
+        JSON response with analysis results
+    """
+    try:
+        analysis_service = current_app.analysis_service
+        
+        # Single responsibility: coordinate the analysis flow
+        result = analysis_service.analyze_user_image(
+            user_id=session['user_id'],
+            image_file=request.files['image']
+        )
+        
+        return jsonify(result.to_dict()), 200
+        
+    except ValidationError as e:
+        return jsonify({'error': str(e)}), 400
+    except ServiceError as e:
+        current_app.logger.error(f"Analysis failed: {e}")
+        return jsonify({'error': 'Analysis failed'}), 500
+```
+
+## 🎯 ROUTE DESIGN PRINCIPLES
+
+### ✅ SINGLE RESPONSIBILITY ROUTES
+```python
+# ✅ GOOD: Each route has ONE clear purpose
+@auth_bp.route('/login', methods=['POST'])
+def login():
+    """Handles user authentication only."""
+    # Only authentication logic here
+
+@analysis_bp.route('/validate-image', methods=['POST'])  
+def validate_image():
+    """Validates uploaded image only."""
+    # Only validation logic here
+
+@analysis_bp.route('/analyze', methods=['POST'])
+def analyze():
+    """Performs skin analysis only."""
+    # Only analysis logic here
+```
+
+### ❌ MULTI-RESPONSIBILITY ROUTES (AVOID)
+```python
+# ❌ BAD: Route doing everything (current state)
+@app.route('/analyze', methods=['POST'])
+def analyze_image():
+    # Authentication check
+    # File upload handling  
+    # Image validation
+    # Face detection
+    # AI model inference
+    # Database operations
+    # Recommendation generation
+    # Template rendering
+    # TOO MANY RESPONSIBILITIES!
+```
+
+## 🔧 DEPENDENCY INJECTION FOR FLASK
+
+### ✅ SERVICE LAYER PATTERN
+```python
+# services/analysis_service.py
+class AnalysisService:
+    """Service for handling skin analysis business logic."""
+    
+    def __init__(self, model_service: ModelService, 
+                 db_service: DatabaseService,
+                 validator: ImageValidator):
+        self._model_service = model_service
+        self._db_service = db_service  
+        self._validator = validator
+    
+    def analyze_user_image(self, user_id: int, image_file) -> AnalysisResult:
+        """
+        Orchestrates the complete skin analysis workflow.
+        
+        Args:
+            user_id: ID of the user requesting analysis
+            image_file: Uploaded image file
+            
+        Returns:
+            AnalysisResult containing scores and recommendations
+        """
+        # Validate image
+        validated_image = self._validator.validate_skin_image(image_file)
+        
+        # Perform analysis
+        scores = self._model_service.analyze_skin(validated_image)
+        
+        # Save results
+        analysis_record = self._db_service.save_analysis(user_id, scores)
+        
+        return AnalysisResult(scores, analysis_record.id)
+```
+
+### ✅ DEPENDENCY REGISTRATION
+```python
+# app/__init__.py (in create_app)
+def create_app(config_name):
+    app = Flask(__name__)
+    
+    # Initialize services
+    model_service = ModelService()
+    db_service = DatabaseService(app.config['DATABASE_URL'])
+    validator = ImageValidator()
+    analysis_service = AnalysisService(model_service, db_service, validator)
+    
+    # Make services available to routes
+    app.analysis_service = analysis_service
+    app.model_service = model_service
+    
+    return app
+```
+
+## 🛡️ FLASK SECURITY BEST PRACTICES
+
+### ✅ MANDATORY SECURITY MEASURES
+```python
+# config.py
+class ProductionConfig:
+    SECRET_KEY = os.environ.get('SECRET_KEY')  # NEVER hardcode!
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
+
+# utils/decorators.py
+def login_required(f):
+    """Decorator to require authentication."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'error': 'Authentication required'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+def rate_limit(max_requests=10, window=60):
+    """Decorator to implement rate limiting."""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # Implement rate limiting logic
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+```
+
+### ❌ SECURITY VULNERABILITIES TO FIX
+```python
+# ❌ CURRENT SECURITY ISSUES IN app.py:
+
+# Line 38: Hardcoded secret key - CRITICAL SECURITY RISK
+app.config['SECRET_KEY'] = 'supersecretkey'
+
+# Line 1032: Direct SQL query - SQL injection risk
+user = db.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+
+# Missing CSRF protection
+# Missing rate limiting
+# Missing input sanitization
+# Missing secure headers
+```
+
+## 📊 ERROR HANDLING STRATEGY
+
+### ✅ CENTRALIZED ERROR HANDLING
+```python
+# app/errors.py
+@app.errorhandler(ValidationError)
+def handle_validation_error(error):
+    """Handle validation errors consistently."""
+    current_app.logger.warning(f"Validation error: {error}")
+    return jsonify({'error': str(error)}), 400
+
+@app.errorhandler(ServiceError)  
+def handle_service_error(error):
+    """Handle service errors with proper logging."""
+    current_app.logger.error(f"Service error: {error}")
+    return jsonify({'error': 'Service temporarily unavailable'}), 503
+
+@app.errorhandler(500)
+def handle_internal_error(error):
+    """Handle unexpected errors securely."""
+    current_app.logger.error(f"Internal error: {error}")
+    return jsonify({'error': 'Internal server error'}), 500
+```
+
+## 🧪 TESTING FLASK APPLICATIONS
+
+### ✅ TESTING STRUCTURE
+```python
+# tests/conftest.py
+@pytest.fixture
+def app():
+    """Create application for testing."""
+    app = create_app('testing')
+    return app
+
+@pytest.fixture  
+def client(app):
+    """Create test client."""
+    return app.test_client()
+
+# tests/test_analysis_routes.py
+def test_analyze_requires_authentication(client):
+    """Test that analysis endpoint requires authentication."""
+    response = client.post('/analysis/upload')
+    assert response.status_code == 401
+
+def test_analyze_with_valid_image(client, auth_headers):
+    """Test successful image analysis."""
+    response = client.post('/analysis/upload', 
+                          data={'image': (io.BytesIO(b'fake image'), 'test.jpg')},
+                          headers=auth_headers)
+    assert response.status_code == 200
+```
+
+## 🚀 PERFORMANCE OPTIMIZATION
+
+### ✅ FLASK PERFORMANCE PATTERNS
+```python
+# Use async patterns for I/O operations
+@analysis_bp.route('/analyze-async', methods=['POST'])
+async def analyze_async():
+    """Async analysis for better performance."""
+    result = await analysis_service.analyze_async(image_data)
+    return jsonify(result)
+
+# Implement caching
+from flask_caching import Cache
+cache = Cache()
+
+@analysis_bp.route('/recommendations/<user_id>')
+@cache.cached(timeout=300)  # Cache for 5 minutes
+def get_recommendations(user_id):
+    """Cached recommendations endpoint."""
+    return jsonify(recommendation_service.get_for_user(user_id))
+```
+
+---
+
+**CRITICAL MIGRATION TASK**: The current monolithic [app.py](mdc:app.py) MUST be refactored into the blueprint architecture described above. This is not optional - it's a requirement for maintainable, secure, and scalable Flask applications.

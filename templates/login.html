@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}로그인 - SKINMATE{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-box">
+        <h2>로그인</h2>
+        <form action="{{ url_for('auth.login') }}" method="post">
+            <div class="input-group">
+                <label for="email">이메일</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="input-group">
+                <label for="password">비밀번호</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit" class="login-button">로그인</button>
+        </form>
+        <div class="divider"></div>
+        <p class="register-link">계정이 없으신가요? <a href="#" id="show-register">회원가입</a></p>
+    </div>
+
+    <div class="register-box" style="display: none;">
+        <h2>회원가입</h2>
+        <form action="{{ url_for('auth.register') }}" method="post">
+            <div class="input-group">
+                <label for="reg-username">사용자 이름</label>
+                <input type="text" id="reg-username" name="username" required>
+            </div>
+            <div class="input-group">
+                <label for="reg-email">이메일</label>
+                <input type="email" id="reg-email" name="email" required>
+            </div>
+            <div class="input-group">
+                <label for="reg-password">비밀번호</label>
+                <input type="password" id="reg-password" name="password" required>
+            </div>
+            <div class="input-group">
+                <label for="reg-confirm-password">비밀번호 확인</label>
+                <input type="password" id="reg-confirm-password" name="confirm_password" required>
+            </div>
+            <button type="submit" class="login-button">회원가입</button>
+        </form>
+        <div class="divider"></div>
+        <p class="register-link">이미 계정이 있으신가요? <a href="#" id="show-login">로그인</a></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('show-register').addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelector('.login-box').style.display = 'none';
+        document.querySelector('.register-box').style.display = 'block';
+    });
+
+    document.getElementById('show-login').addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelector('.register-box').style.display = 'none';
+        document.querySelector('.login-box').style.display = 'block';
+    });
+</script>
+{% endblock %}

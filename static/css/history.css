@@ -1,0 +1,183 @@
+/* General Container Styling */
+.history-container {
+    width: 600px;
+    height: 710px;
+    margin: auto;
+    padding: 2rem 2rem 0 2rem;
+    background-color: #ffffff;
+    /* border-radius: 10px; */
+}
+
+h2 {
+    padding: 10px 10px 10px 10px;
+    color: #D8AAAA;
+    text-align: center;
+    font-weight: 800;
+    font-size: 40px;
+}
+
+/* Card-based UI sections */
+.card {
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 0 auto 0 auto;
+    margin-bottom: auto;
+}
+
+/* Date Picker Styling */
+.date-picker-card {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    padding: 10px 30px 80px 30px;
+}
+
+.date-picker-card label {
+    font-weight: 500;
+    color: #555;
+}
+
+.date-picker-card input[type="date"] {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 8px 10px;
+    font-size: 14px;
+    color: #333;
+    transition: border-color 0.3s;
+}
+
+.date-picker-card input[type="date"]:focus {
+    outline: none;
+    border-color: #F66F6F;
+}
+
+.date-picker-card button {
+    background-color: #F66F6F;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.date-picker-card button:hover {
+    background-color: #e55a5a;
+}
+
+
+/* Toggle Button Container */
+.toggle-button-container {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+#toggle-analyses-btn {
+    background-color: #5c6bc0;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 10px 25px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#toggle-analyses-btn:hover {
+    background-color: #4d5aa9;
+}
+
+
+/* Detailed Analyses List Styling */
+#detailed-analyses-list h2 {
+    margin-top: 2rem;
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 1.5rem;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.3s;
+}
+
+.history-item:last-child {
+    border-bottom: none;
+}
+
+.history-item:hover {
+    background-color: #fafafa;
+}
+
+.history-item img {
+    width: 100px;
+    height: 100px;
+    border-radius: 8px;
+    object-fit: cover;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.history-details {
+    flex-grow: 1;
+}
+
+.history-details .timestamp {
+    font-size: 0.9rem;
+    color: #888;
+    margin-bottom: 0.5rem;
+}
+
+.history-details h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: #333;
+}
+
+.history-details p {
+    font-size: 1rem;
+    color: #555;
+    line-height: 1.5;
+}
+
+.history-details p b {
+    color: #333;
+}
+
+/* No history message */
+#detailed-analyses-list > p {
+    text-align: center;
+    padding: 2rem;
+    color: #777;
+}
+
+.edit-mode-item {
+    margin-left: 36px;
+}
+
+.delete-button {
+    background-color: transparent;
+    color: #756b6b;
+    border: none;
+    padding: 0;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.edit-button, .select-all-button {
+    background-color: transparent;
+    color: #797979;
+    border: none;
+    padding: 0;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.delete-button:hover, .edit-button:hover, .select-all-button:hover {
+    color: #c75c5c;
+}

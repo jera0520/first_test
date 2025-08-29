@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}피부 분석 - SKINMATE{% endblock %}
+
+{% block content %}
+<div class="analysis-container">
+    <div class="left-panel">
+        <div class="image-preview-container">
+            <span id="placeholder-text" class="placeholder-text">이미지를 선택해주세요</span>
+            <img id="image-preview" src="#" alt="업로드된 이미지 미리보기" style="display: none;">
+        </div>
+        
+        <form id="upload-form" action="{{ url_for('analysis.analyze') }}" method="post" enctype="multipart/form-data">
+            <div class="button-group">
+                <label for="file-upload" class="file-input-label">파일 선택</label>
+                <input type="file" id="file-upload" name="image" accept="image/*" required>
+                <button type="submit" class="analyze-button">분석하기</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="right-panel">
+        <h2>SKINMATE AI 피부 진단 <br><span class="subtitle"><span class="pink-text">시작 전</span> <span class="red-text">주의사항</span></span></h2>
+        <ul>
+            <li>정확한 분석을 위해, 화장이나 선크림을 지운 맨 얼굴을 촬영해주세요.</li>
+            <li>정면을 바라보고, 얼굴 전체가 명확하게 나오도록 촬영해주세요.</li>
+            <li>흔들리지 않고 선명한 사진일수록 분석 정확도가 높아집니다.</li>
+            <li>안경, 마스크, 모자 등 얼굴을 가리는 액세서리는 모두 제거해주세요.</li>
+            <li>밝고 균일한 조명 아래에서 촬영하는 것을 권장합니다.<p class="sub-li">그림자가 지지 않도록 주의하세요.</p></li>
+            <li>본 분석 결과는 참고용이며, 전문적인 의학적 진단을 대체할 수 없습니다.</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const imageUpload = document.getElementById('file-upload');
+    const imagePreview = document.getElementById('image-preview');
+    const placeholderText = document.getElementById('placeholder-text');
+
+    imageUpload.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imagePreview.src = e.target.result;
+                imagePreview.style.display = 'block';
+                placeholderText.style.display = 'none';
+            };
+            reader.readAsDataURL(this.files[0]);
+        }
+    });
+</script>
+{% endblock %}

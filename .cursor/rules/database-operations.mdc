@@ -1,0 +1,623 @@
+---
+globs: *.py,*.sql
+description: "Database operations, security, and performance best practices"
+---
+
+# 🗄️ Database Operations & Security Rules for SKINMATE
+
+## 🚨 CRITICAL DATABASE SECURITY ISSUES
+
+### ❌ SQL INJECTION VULNERABILITIES (CURRENT RISKS)
+```python
+# ❌ BAD: Direct SQL execution (current in app.py)
+user = db.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+
+# ❌ POTENTIAL RISKS: Raw SQL queries scattered throughout app.py
+moisturizer_query = """
+    SELECT * FROM products 
+    WHERE main_category = '스킨케어' AND middle_category = '크림'
+    AND (name LIKE '%젤%' OR name LIKE '%로션%' OR sub_category = '수분')
+    ORDER BY rank ASC
+    LIMIT 3
+"""
+```
+
+**SECURITY RISKS:**
+- String concatenation could lead to SQL injection
+- No input sanitization or validation
+- Direct database access from routes
+- No query parameterization consistency
+
+### ❌ WEAK DATABASE SCHEMA (CURRENT STATE)
+```sql
+-- ❌ PROBLEMS in schema.sql:
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,        -- No length constraints
+    email TEXT UNIQUE NOT NULL,    -- No format validation
+    password_hash TEXT NOT NULL    -- No length constraints
+);
+
+CREATE TABLE analyses (
+    -- Missing indexes for performance
+    -- No constraints on JSON fields
+    -- No data retention policies
+);
+```
+
+## ✅ MANDATORY DATABASE ARCHITECTURE
+
+### 1. ORM LAYER (REQUIRED MIGRATION)
+```python
+# models/__init__.py
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+import sqlite3
+
+db = SQLAlchemy()
+
+# Enable foreign key constraints for SQLite
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+# models/user.py
+from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy.ext.hybrid import hybrid_property
+import re
+
+class User(db.Model):
+    """User model with proper validation and security."""
+    
+    __tablename__ = 'users'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), nullable=False, index=True)
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    _password_hash = db.Column('password_hash', db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_login = db.Column(db.DateTime)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Relationships
+    analyses = db.relationship('Analysis', backref='user', lazy='dynamic',
+                              cascade='all, delete-orphan')
+    
+    @hybrid_property
+    def password(self):
+        """Password property (write-only)."""
+        raise AttributeError('Password is not readable')
+    
+    @password.setter
+    def password(self, password: str):
+        """Set password with validation."""
+        if not self._validate_password(password):
+            raise ValueError("Password does not meet security requirements")
+        self._password_hash = generate_password_hash(password)
+    
+    def verify_password(self, password: str) -> bool:
+        """Verify password against hash."""
+        return check_password_hash(self._password_hash, password)
+    
+    @staticmethod
+    def _validate_password(password: str) -> bool:
+        """
+        Validate password strength.
+        
+        Requirements:
+        - At least 8 characters
+        - Contains uppercase and lowercase letters
+        - Contains at least one digit
+        """
+        if len(password) < 8:
+            return False
+        if not re.search(r'[A-Z]', password):
+            return False
+        if not re.search(r'[a-z]', password):
+            return False
+        if not re.search(r'\d', password):
+            return False
+        return True
+    
+    @staticmethod
+    def _validate_email(email: str) -> bool:
+        """Validate email format."""
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        return re.match(pattern, email) is not None
+    
+    def to_dict(self) -> dict:
+        """Convert user to dictionary (safe for JSON)."""
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None
+        }
+```
+
+### 2. SECURE ANALYSIS MODEL
+```python
+# models/analysis.py
+from sqlalchemy import JSON
+from sqlalchemy.ext.hybrid import hybrid_property
+import json
+
+class Analysis(db.Model):
+    """Analysis model with proper validation and constraints."""
+    
+    __tablename__ = 'analyses'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    # Analysis data
+    skin_type = db.Column(db.String(50), nullable=False)
+    recommendation_text = db.Column(db.Text, nullable=False)
+    image_filename = db.Column(db.String(255))
+    
+    # JSON fields with validation
+    _scores_json = db.Column('scores_json', db.Text, nullable=False)
+    _concerns_json = db.Column('concerns_json', db.Text, nullable=False)
+    
+    # Constraints
+    __table_args__ = (
+        db.CheckConstraint('skin_type IN ("건성", "수부지", "복합성", "중성", "지성")'),
+        db.Index('idx_user_created', 'user_id', 'created_at'),
+    )
+    
+    @hybrid_property
+    def scores(self) -> dict:
+        """Get scores as dictionary."""
+        try:
+            scores = json.loads(self._scores_json)
+            # Validate score ranges
+            for key, value in scores.items():
+                if not isinstance(value, (int, float)) or not (0 <= value <= 100):
+                    raise ValueError(f"Invalid score value: {key}={value}")
+            return scores
+        except (json.JSONDecodeError, ValueError) as e:
+            raise ValueError(f"Invalid scores data: {e}")
+    
+    @scores.setter
+    def scores(self, scores_dict: dict):
+        """Set scores with validation."""
+        if not isinstance(scores_dict, dict):
+            raise ValueError("Scores must be a dictionary")
+        
+        required_keys = ['moisture', 'elasticity', 'wrinkle', 'skin_type_score']
+        for key in required_keys:
+            if key not in scores_dict:
+                raise ValueError(f"Missing required score: {key}")
+            
+            value = scores_dict[key]
+            if not isinstance(value, (int, float)) or not (0 <= value <= 100):
+                raise ValueError(f"Invalid score range for {key}: {value}")
+        
+        self._scores_json = json.dumps(scores_dict)
+    
+    @hybrid_property
+    def concerns(self) -> list:
+        """Get concerns as list."""
+        try:
+            return json.loads(self._concerns_json)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid concerns data: {e}")
+    
+    @concerns.setter
+    def concerns(self, concerns_list: list):
+        """Set concerns with validation."""
+        if not isinstance(concerns_list, list):
+            raise ValueError("Concerns must be a list")
+        self._concerns_json = json.dumps(concerns_list)
+```
+
+### 3. REPOSITORY PATTERN (DATA ACCESS LAYER)
+```python
+# repositories/user_repository.py
+from typing import Optional, List
+from models.user import User
+from sqlalchemy import and_, or_
+
+class UserRepository:
+    """Repository for user data access operations."""
+    
+    @staticmethod
+    def create_user(username: str, email: str, password: str) -> User:
+        """
+        Create new user with validation.
+        
+        Args:
+            username: User's display name
+            email: User's email address
+            password: Plain text password (will be hashed)
+            
+        Returns:
+            Created user instance
+            
+        Raises:
+            ValueError: If validation fails
+            IntegrityError: If email already exists
+        """
+        # Validate inputs
+        if not username or len(username.strip()) < 2:
+            raise ValueError("Username must be at least 2 characters")
+        
+        if not User._validate_email(email):
+            raise ValueError("Invalid email format")
+        
+        if not User._validate_password(password):
+            raise ValueError("Password does not meet security requirements")
+        
+        # Check if email exists
+        if UserRepository.get_by_email(email):
+            raise ValueError("Email already registered")
+        
+        # Create user
+        user = User(
+            username=username.strip(),
+            email=email.lower().strip()
+        )
+        user.password = password  # This will hash the password
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        return user
+    
+    @staticmethod
+    def get_by_email(email: str) -> Optional[User]:
+        """Get user by email address."""
+        return User.query.filter_by(email=email.lower().strip()).first()
+    
+    @staticmethod
+    def get_by_id(user_id: int) -> Optional[User]:
+        """Get user by ID."""
+        return User.query.get(user_id)
+    
+    @staticmethod
+    def authenticate(email: str, password: str) -> Optional[User]:
+        """
+        Authenticate user with email and password.
+        
+        Args:
+            email: User's email
+            password: Plain text password
+            
+        Returns:
+            User instance if authentication succeeds, None otherwise
+        """
+        user = UserRepository.get_by_email(email)
+        if user and user.verify_password(password) and user.is_active:
+            # Update last login
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+            return user
+        return None
+    
+    @staticmethod
+    def update_last_login(user_id: int):
+        """Update user's last login timestamp."""
+        user = User.query.get(user_id)
+        if user:
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+```
+
+## 🔒 DATABASE SECURITY BEST PRACTICES
+
+### ✅ CONNECTION SECURITY
+```python
+# config/database.py
+class DatabaseConfig:
+    """Secure database configuration."""
+    
+    @staticmethod
+    def get_database_url() -> str:
+        """Get database URL with security considerations."""
+        database_url = os.environ.get('DATABASE_URL')
+        
+        if not database_url:
+            # Development fallback
+            instance_path = os.environ.get('INSTANCE_PATH', 'instance')
+            Path(instance_path).mkdir(exist_ok=True)
+            database_url = f'sqlite:///{instance_path}/skinmate.sqlite'
+        
+        return database_url
+    
+    @staticmethod
+    def get_connection_options() -> dict:
+        """Get secure connection options."""
+        return {
+            # SQLite specific options
+            'pool_pre_ping': True,
+            'pool_recycle': 3600,
+            # Enable foreign key constraints
+            'connect_args': {
+                'check_same_thread': False,
+                'timeout': 10
+            }
+        }
+
+# services/database_service.py
+class DatabaseService:
+    """Service for database operations with security and performance."""
+    
+    def __init__(self, app=None):
+        self.db = db
+        if app:
+            self.init_app(app)
+    
+    def init_app(self, app):
+        """Initialize database with app."""
+        app.config['SQLALCHEMY_DATABASE_URI'] = DatabaseConfig.get_database_url()
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = DatabaseConfig.get_connection_options()
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        
+        self.db.init_app(app)
+        
+        # Register CLI commands
+        app.cli.add_command(self._create_init_db_command())
+    
+    def _create_init_db_command(self):
+        """Create CLI command for database initialization."""
+        @click.command('init-db')
+        @click.option('--drop', is_flag=True, help='Drop existing tables')
+        def init_db_command(drop):
+            """Initialize the database."""
+            if drop:
+                self.db.drop_all()
+                click.echo('Dropped existing tables.')
+            
+            self.db.create_all()
+            click.echo('Initialized the database.')
+        
+        return init_db_command
+```
+
+### ✅ QUERY SECURITY & PERFORMANCE
+```python
+# repositories/base_repository.py
+from typing import TypeVar, Generic, List, Optional
+from sqlalchemy import text
+
+T = TypeVar('T', bound=db.Model)
+
+class BaseRepository(Generic[T]):
+    """Base repository with common security patterns."""
+    
+    model: T = None
+    
+    @classmethod
+    def get_by_id(cls, id: int) -> Optional[T]:
+        """Get entity by ID with validation."""
+        if not isinstance(id, int) or id <= 0:
+            raise ValueError("Invalid ID")
+        return cls.model.query.get(id)
+    
+    @classmethod
+    def safe_raw_query(cls, query: str, params: dict = None) -> List[T]:
+        """
+        Execute raw SQL with proper parameterization.
+        
+        Args:
+            query: SQL query with named parameters
+            params: Dictionary of parameter values
+            
+        Returns:
+            Query results
+            
+        Raises:
+            ValueError: If query contains unsafe patterns
+        """
+        # Validate query doesn't contain dangerous patterns
+        dangerous_patterns = [
+            'DROP', 'DELETE', 'UPDATE', 'INSERT', 'ALTER', 'CREATE',
+            'EXEC', 'EXECUTE', '--', '/*', 'xp_', 'sp_'
+        ]
+        
+        query_upper = query.upper()
+        for pattern in dangerous_patterns:
+            if pattern in query_upper:
+                raise ValueError(f"Query contains dangerous pattern: {pattern}")
+        
+        # Execute with parameters
+        result = db.session.execute(text(query), params or {})
+        return result.fetchall()
+    
+    @classmethod
+    def bulk_create(cls, entities: List[dict]) -> List[T]:
+        """Bulk create entities efficiently."""
+        if not entities:
+            return []
+        
+        # Validate all entities
+        for entity_data in entities:
+            if not isinstance(entity_data, dict):
+                raise ValueError("Entity data must be dictionary")
+        
+        # Bulk insert
+        try:
+            db.session.bulk_insert_mappings(cls.model, entities)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            raise DatabaseError(f"Bulk create failed: {e}")
+```
+
+## 📊 DATABASE PERFORMANCE OPTIMIZATION
+
+### ✅ INDEXING STRATEGY
+```python
+# migrations/create_indexes.py
+def create_performance_indexes():
+    """Create indexes for optimal query performance."""
+    
+    indexes_to_create = [
+        # User table indexes
+        "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)",
+        "CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)",
+        "CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at)",
+        
+        # Analysis table indexes
+        "CREATE INDEX IF NOT EXISTS idx_analyses_user_id ON analyses(user_id)",
+        "CREATE INDEX IF NOT EXISTS idx_analyses_created_at ON analyses(created_at)",
+        "CREATE INDEX IF NOT EXISTS idx_analyses_skin_type ON analyses(skin_type)",
+        "CREATE INDEX IF NOT EXISTS idx_analyses_user_created ON analyses(user_id, created_at)",
+        
+        # Product table indexes (if exists)
+        "CREATE INDEX IF NOT EXISTS idx_products_category ON products(main_category, sub_category)",
+        "CREATE INDEX IF NOT EXISTS idx_products_rank ON products(rank)",
+        "CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand)",
+    ]
+    
+    for index_sql in indexes_to_create:
+        try:
+            db.session.execute(text(index_sql))
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Failed to create index: {e}")
+            db.session.rollback()
+```
+
+### ✅ QUERY OPTIMIZATION
+```python
+# repositories/analysis_repository.py
+class AnalysisRepository(BaseRepository[Analysis]):
+    """Repository for analysis data with optimized queries."""
+    
+    model = Analysis
+    
+    @classmethod
+    def get_user_analyses_paginated(cls, user_id: int, page: int = 1, 
+                                  per_page: int = 10) -> dict:
+        """
+        Get user's analyses with pagination and optimization.
+        
+        Args:
+            user_id: ID of the user
+            page: Page number (1-based)
+            per_page: Number of items per page
+            
+        Returns:
+            Dictionary with analyses and pagination info
+        """
+        # Validate inputs
+        if not isinstance(user_id, int) or user_id <= 0:
+            raise ValueError("Invalid user ID")
+        
+        # Optimized query with proper indexing
+        query = Analysis.query.filter_by(user_id=user_id)\
+                             .order_by(Analysis.created_at.desc())
+        
+        # Use pagination for performance
+        paginated = query.paginate(
+            page=page, 
+            per_page=per_page,
+            error_out=False
+        )
+        
+        return {
+            'analyses': [analysis.to_dict() for analysis in paginated.items],
+            'total': paginated.total,
+            'pages': paginated.pages,
+            'current_page': page,
+            'has_next': paginated.has_next,
+            'has_prev': paginated.has_prev
+        }
+    
+    @classmethod
+    def get_analysis_statistics(cls, user_id: int, days: int = 30) -> dict:
+        """
+        Get analysis statistics for user with optimized query.
+        
+        Args:
+            user_id: ID of the user
+            days: Number of days to look back
+            
+        Returns:
+            Statistics dictionary
+        """
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        
+        # Use database aggregation for performance
+        result = db.session.query(
+            func.count(Analysis.id).label('total_analyses'),
+            func.avg(func.json_extract(Analysis._scores_json, '$.moisture')).label('avg_moisture'),
+            func.avg(func.json_extract(Analysis._scores_json, '$.elasticity')).label('avg_elasticity'),
+            func.max(Analysis.created_at).label('last_analysis')
+        ).filter(
+            Analysis.user_id == user_id,
+            Analysis.created_at >= cutoff_date
+        ).first()
+        
+        return {
+            'total_analyses': result.total_analyses or 0,
+            'average_moisture': round(result.avg_moisture or 0, 1),
+            'average_elasticity': round(result.avg_elasticity or 0, 1),
+            'last_analysis': result.last_analysis.isoformat() if result.last_analysis else None
+        }
+```
+
+## 🧪 DATABASE TESTING
+
+### ✅ COMPREHENSIVE DATABASE TESTING
+```python
+# tests/test_repositories.py
+class TestUserRepository:
+    """Test suite for user repository operations."""
+    
+    @pytest.fixture
+    def db_session(self):
+        """Create a clean database session for testing."""
+        # Create test database
+        db.create_all()
+        yield db.session
+        # Clean up
+        db.session.remove()
+        db.drop_all()
+    
+    def test_create_user_success(self, db_session):
+        """Test successful user creation."""
+        user = UserRepository.create_user(
+            username="testuser",
+            email="test@example.com", 
+            password="SecurePass123"
+        )
+        
+        assert user.id is not None
+        assert user.username == "testuser"
+        assert user.email == "test@example.com"
+        assert user.verify_password("SecurePass123")
+    
+    def test_create_user_duplicate_email_fails(self, db_session):
+        """Test that duplicate email creation fails."""
+        UserRepository.create_user("user1", "test@example.com", "Pass123")
+        
+        with pytest.raises(ValueError, match="Email already registered"):
+            UserRepository.create_user("user2", "test@example.com", "Pass456")
+    
+    def test_authenticate_valid_user(self, db_session):
+        """Test successful authentication."""
+        UserRepository.create_user("testuser", "test@example.com", "Pass123")
+        
+        user = UserRepository.authenticate("test@example.com", "Pass123")
+        assert user is not None
+        assert user.email == "test@example.com"
+    
+    def test_authenticate_invalid_password(self, db_session):
+        """Test authentication with wrong password."""
+        UserRepository.create_user("testuser", "test@example.com", "Pass123")
+        
+        user = UserRepository.authenticate("test@example.com", "WrongPass")
+        assert user is None
+```
+
+---
+
+**CRITICAL MIGRATION TASK**: The current direct SQLite usage in [app.py](mdc:app.py) MUST be migrated to the ORM-based architecture described above. This migration is essential for security, maintainability, and performance of database operations.

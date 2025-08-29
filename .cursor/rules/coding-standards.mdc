@@ -1,0 +1,261 @@
+---
+alwaysApply: true
+description: "Comprehensive coding standards and quality guidelines for SKINMATE project"
+---
+
+# 🎯 SKINMATE Coding Standards & Quality Guidelines
+
+## 🚨 CRITICAL SECURITY RULES (MUST FOLLOW)
+
+### ❌ NEVER DO (Security Violations)
+- **NEVER** hardcode secrets in source code (SECRET_KEY='supersecretkey' in [app.py](mdc:app.py) line 38 MUST be fixed)
+- **NEVER** use raw SQL without parameterization (prevents SQL injection)
+- **NEVER** trust user input without validation and sanitization
+- **NEVER** expose internal paths or stack traces to users
+- **NEVER** commit sensitive data like API keys, passwords, or tokens
+- **NEVER** use global variables for session state or user data
+
+### ✅ MUST DO (Security Requirements)
+- **ALWAYS** use environment variables for sensitive configuration
+- **ALWAYS** validate and sanitize all user inputs using proper validation libraries
+- **ALWAYS** use parameterized queries or ORM for database operations
+- **ALWAYS** implement proper error handling without exposing system details
+- **ALWAYS** use HTTPS in production and secure cookie settings
+- **ALWAYS** implement rate limiting for API endpoints
+
+## 🏗️ ARCHITECTURAL PRINCIPLES
+
+### ✅ MANDATORY PATTERNS
+- **Single Responsibility Principle**: Each function/class should have ONE clear purpose
+- **Dependency Injection**: Avoid global variables, inject dependencies explicitly
+- **Separation of Concerns**: Separate business logic, data access, and presentation layers
+- **Error Boundaries**: Implement proper exception handling at appropriate levels
+
+### ❌ ANTI-PATTERNS TO AVOID
+- **God Objects**: Classes/functions doing too many things (like current [app.py](mdc:app.py))
+- **Circular Dependencies**: Modules importing each other
+- **Tight Coupling**: Components directly dependent on implementation details
+- **Magic Numbers/Strings**: Use named constants instead
+
+## 📝 CODE QUALITY STANDARDS
+
+### Function Design Rules
+```python
+# ✅ GOOD: Clear, single purpose, well-documented
+def validate_skin_image(file_path: str) -> bool:
+    """
+    Validates if uploaded image contains a detectable face.
+    
+    Args:
+        file_path: Path to the uploaded image file
+        
+    Returns:
+        bool: True if valid face image, False otherwise
+        
+    Raises:
+        ValidationError: If image processing fails
+    """
+    try:
+        # Implementation
+        pass
+    except Exception as e:
+        logger.error(f"Image validation failed: {e}")
+        raise ValidationError(f"Invalid image: {str(e)}")
+
+# ❌ BAD: No type hints, unclear purpose, poor error handling
+def is_face_image(image_path):
+    try:
+        # Complex logic without documentation
+        # Silent failures
+        return False
+    except:
+        return False
+```
+
+### Class Design Rules
+```python
+# ✅ GOOD: Clear responsibility, proper initialization
+class SkinAnalysisService:
+    """Handles skin analysis using ML models."""
+    
+    def __init__(self, model_manager: ModelManager, validator: ImageValidator):
+        self._model_manager = model_manager
+        self._validator = validator
+    
+    def analyze(self, image_path: str) -> AnalysisResult:
+        """Analyzes skin image and returns structured results."""
+        # Implementation
+
+# ❌ BAD: Multiple responsibilities, global dependencies
+class AnalyzeEverything:
+    def __init__(self):
+        global _resnet_model  # Bad: global dependency
+        self.model = _resnet_model
+    
+    def do_analysis_and_save_and_recommend(self, everything):
+        # Bad: multiple responsibilities
+        pass
+```
+
+## 🎯 ERROR HANDLING STRATEGY
+
+### ✅ PROPER ERROR HANDLING
+```python
+# Define custom exceptions
+class SkinmateError(Exception):
+    """Base exception for SKINMATE application."""
+    pass
+
+class ModelLoadError(SkinmateError):
+    """Raised when AI models fail to load."""
+    pass
+
+class ValidationError(SkinmateError):
+    """Raised when input validation fails."""
+    pass
+
+# Proper error handling in routes
+@app.route('/analyze', methods=['POST'])
+def analyze_image():
+    try:
+        # Validation
+        if 'user_id' not in session:
+            raise ValidationError("Authentication required")
+        
+        # Business logic
+        result = analysis_service.analyze(image)
+        return jsonify(result.to_dict())
+        
+    except ValidationError as e:
+        logger.warning(f"Validation error: {e}")
+        return jsonify({'error': str(e)}), 400
+    except ModelLoadError as e:
+        logger.error(f"Model error: {e}")
+        return jsonify({'error': 'Analysis temporarily unavailable'}), 503
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+```
+
+### ❌ POOR ERROR HANDLING
+```python
+# Bad: Silent failures, unclear errors
+@app.route('/analyze', methods=['POST'])
+def analyze_image():
+    try:
+        # No validation
+        # Complex logic
+        return render_template('result.html')
+    except:  # Bad: catching all exceptions
+        flash('Error occurred')  # Bad: unhelpful message
+        return redirect('/')  # Bad: losing error context
+```
+
+## 🔧 REFACTORING IMPERATIVES
+
+### IMMEDIATE FIXES REQUIRED
+1. **Extract [app.py](mdc:app.py) into modules**:
+   ```
+   routes/
+   ├── auth.py          # Authentication routes
+   ├── analysis.py      # Skin analysis routes  
+   ├── api.py          # API endpoints
+   └── main.py         # Main page routes
+   
+   services/
+   ├── analysis_service.py    # Skin analysis logic
+   ├── model_service.py       # AI model management
+   └── recommendation_service.py  # Product recommendations
+   ```
+
+2. **Replace hardcoded secrets**:
+   ```python
+   # config.py
+   class Config:
+       SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-key-only'
+       DATABASE_URL = os.environ.get('DATABASE_URL')
+   ```
+
+3. **Implement proper validation**:
+   ```python
+   from marshmallow import Schema, fields, validate
+   
+   class ImageUploadSchema(Schema):
+       image = fields.Raw(required=True, validate=validate.Length(max=5*1024*1024))
+   ```
+
+## 📚 DOCUMENTATION REQUIREMENTS
+
+### ✅ REQUIRED DOCUMENTATION
+- **Docstrings**: All public functions/classes MUST have comprehensive docstrings
+- **Type Hints**: All function parameters and returns MUST be type-hinted  
+- **Comments**: Complex algorithms MUST have explanatory comments
+- **API Documentation**: All endpoints MUST be documented with expected inputs/outputs
+
+### Function Documentation Template
+```python
+def function_name(param1: Type, param2: Type) -> ReturnType:
+    """
+    Brief description of what the function does.
+    
+    Args:
+        param1: Description of param1
+        param2: Description of param2
+        
+    Returns:
+        Description of return value
+        
+    Raises:
+        SpecificError: When this specific error occurs
+        
+    Example:
+        >>> result = function_name("test", 123)
+        >>> print(result)
+        "expected output"
+    """
+```
+
+## 🧪 TESTING REQUIREMENTS
+
+### ✅ MANDATORY TESTING
+- **Unit Tests**: Every service/utility function MUST have unit tests
+- **Integration Tests**: API endpoints MUST have integration tests
+- **Security Tests**: Input validation MUST be security-tested
+- **Error Tests**: Exception handling MUST be tested
+
+### Test Structure
+```python
+# tests/test_analysis_service.py
+import pytest
+from unittest.mock import Mock, patch
+
+class TestSkinAnalysisService:
+    def test_analyze_valid_image_returns_results(self):
+        # Arrange
+        service = SkinAnalysisService(mock_model, mock_validator)
+        
+        # Act
+        result = service.analyze("valid_image.jpg")
+        
+        # Assert
+        assert result.is_valid
+        assert result.scores is not None
+```
+
+## 🚀 PERFORMANCE REQUIREMENTS
+
+### ✅ PERFORMANCE STANDARDS
+- **Database Queries**: Use indexes, avoid N+1 queries
+- **Image Processing**: Implement async processing for large images
+- **Caching**: Cache ML model predictions when appropriate
+- **Memory Management**: Properly dispose of resources
+
+### ❌ PERFORMANCE ANTI-PATTERNS
+- Loading models on every request
+- Synchronous file processing
+- Unindexed database queries
+- Memory leaks from global variables
+
+---
+
+Remember: **Code quality is not negotiable**. Every commit should improve the codebase's security, maintainability, and performance.
